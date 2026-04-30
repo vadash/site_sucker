@@ -1,0 +1,47 @@
+{
+  "UserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+  "Timeout": 15,
+  "Retries": 3,
+  "MaxDepth": 0,
+  "OutputRoot": "./downloads",
+  "WaitBetweenRequests": 0,
+  "ParallelDownloads": 4,
+  "RejectPatterns": [
+    "action=",
+    "oldid=",
+    "diff=",
+    "printable=",
+    "returnto=",
+    "redirect=",
+    "Special:",
+    "Talk:",
+    "User:",
+    "User_talk:",
+    "Category_talk:",
+    "load.php",
+    "api.php"
+  ],
+  "RejectDomains": [
+    "analytics.wikitide.net",
+    "matomo.",
+    "analytics."
+  ],
+  "MediaExtensions": [
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".mp4",
+    ".webm",
+    ".avi",
+    ".mkv",
+    ".mov",
+    ".svg",
+    ".ico",
+    ".bmp",
+    ".css",
+    ".js",
+    ".woff2"
+  ]
+}
