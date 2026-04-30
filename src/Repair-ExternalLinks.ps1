@@ -87,7 +87,8 @@ function Repair-ExternalLinks {
             # Match the URL with optional query string suffix
             $urlPattern = [regex]::Escape($url) + '(?:\?[^\s"''#]*)?'
             if ($raw -match $urlPattern) {
-                $raw = $raw -replace $urlPattern, $relPath
+                $safeRelPath = $relPath.Replace('$', '$$')
+                $raw = $raw -replace $urlPattern, $safeRelPath
                 $modified = $true
             }
         }

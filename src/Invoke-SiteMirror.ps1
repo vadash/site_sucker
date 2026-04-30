@@ -109,16 +109,16 @@ function Invoke-SiteMirror {
         foreach ($url in $batch) {
             $powershell = [powershell]::Create()
             $powershell.AddScript({
-                param($WgetPath, $Args, $Url)
+                param($WgetExecutable, $WgetParams, $TargetUrl)
 
                 $env:http_proxy = $null
                 $env:https_proxy = $null
                 $env:all_proxy = $null
 
                 # Don't capture output - it can interfere with exit code
-                & $WgetPath @Args $Url 2>$null
+                & $WgetExecutable @WgetParams $TargetUrl 2>$null
                 return @{
-                    Url      = $Url
+                    Url      = $TargetUrl
                     ExitCode = $LASTEXITCODE
                 }
             }).AddArgument($WgetPath).AddArgument($pass2Args).AddArgument($url) | Out-Null
