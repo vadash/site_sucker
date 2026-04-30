@@ -1,6 +1,5 @@
 # Downloads output
 downloads/
-pd2-wiki/
 
 # Log files
 *.log
@@ -8,6 +7,7 @@ log.txt
 
 # Binary debug files
 bin/wget.exe.debug
+bin/.wget-hsts
 *.debug
 
 # Windows
@@ -22,3 +22,8 @@ Desktop.ini
 .idea/
 *.suo
 *.user
+
+# MCP
+.jcodemunch.jsonc
+
+# UNSORTED
