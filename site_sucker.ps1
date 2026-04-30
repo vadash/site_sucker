@@ -139,8 +139,9 @@ begin {
         }
     }
 
-    # Create output directory
+    # Create output directory (resolve to absolute path to prevent file bleed)
     $null = New-Item -Path $OutputDir -ItemType Directory -Force
+    $OutputDir = [System.IO.Path]::GetFullPath($OutputDir)
 
     # Override settings with CLI params
     if ($Parallel -gt 0) {

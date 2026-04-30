@@ -77,8 +77,9 @@ function Invoke-SiteMirror {
 
     Write-Host "`nDownloading external media (parallel: $($Settings.ParallelDownloads))..." -ForegroundColor Cyan
 
-    # Build common args for pass 2 - use --no-directories to flatten external media into output dir
-    $pass2Args = New-WgetArgs -Settings $Settings -OutputDir $OutputDir -ExtraArgs @(
+    # Build common args for pass 2 - no link conversion to prevent bleed,
+    # no directories to flatten external media into output dir
+    $pass2Args = New-WgetArgs -Settings $Settings -OutputDir $OutputDir -NoLinkConversion -ExtraArgs @(
         "--level=1",
         "--no-directories"
     )

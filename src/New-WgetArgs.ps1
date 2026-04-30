@@ -33,14 +33,15 @@ function New-WgetArgs {
         [string]$OutputDir,
 
         [Parameter(Mandatory = $false)]
-        [string[]]$ExtraArgs = @()
+        [string[]]$ExtraArgs = @(),
+
+        [Parameter(Mandatory = $false)]
+        [switch]$NoLinkConversion
     )
 
     $commonArgs = @(
         "-e", "robots=off",
         "--no-proxy",
-        "--convert-links",
-        "--adjust-extension",
         "--no-verbose",
         "--restrict-file-names=windows",
         "--no-host-directories",
@@ -49,6 +50,12 @@ function New-WgetArgs {
         "--timeout=$($Settings.Timeout)",
         "--tries=$($Settings.Retries)"
     )
+
+    # Only add link conversion for pass 1 (mirroring), not pass 2 (plain downloads)
+    if (-not $NoLinkConversion) {
+        $commonArgs += "--convert-links"
+        $commonArgs += "--adjust-extension"
+    }
 
     # Build reject-regex from patterns and domains
     $rejectPatterns = $Settings.RejectPatterns -join '|'
