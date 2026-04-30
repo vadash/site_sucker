@@ -3,23 +3,9 @@
     Rewrites external CDN URLs in downloaded HTML to point to local copies.
 
 .DESCRIPTION
-    After pass 2 downloads external media (CSS, JS, fonts, images) to the
-    output directory root, this function scans all HTML files and replaces
-    absolute CDN URLs with relative paths to the local files, enabling
-    fully offline browsing.
-
-.PARAMETER OutputDir
-    Path to the directory containing downloaded files.
-
-.PARAMETER ExternalUrls
-    Set of unique external media URLs that were downloaded by pass 2.
-
-.OUTPUTS
-    System.Int32
-    Number of HTML files that were modified.
-
-.EXAMPLE
-    $count = Repair-ExternalLinks -OutputDir "./downloads" -ExternalUrls $extUrls
+    Scans HTML files to replace absolute CDN URLs with relative paths to the local files.
+    Strips crossorigin/integrity attributes to prevent local file:// CORS errors.
+    Also scans CSS files to convert absolute paths (url('/...')) to relative paths.
 #>
 function Repair-ExternalLinks {
     [CmdletBinding()]
@@ -47,7 +33,6 @@ function Repair-ExternalLinks {
             $filename = [System.IO.Path]::GetFileName($uri.AbsolutePath)
             if ($filename) {
                 $localPath = Join-Path $OutputDir $filename
-                # Only map if the file actually exists locally
                 if (Test-Path $localPath -PathType Leaf) {
                     $urlMap[$url] = $filename
                 }
@@ -65,6 +50,7 @@ function Repair-ExternalLinks {
 
     Write-Host "  Mapping $($urlMap.Count) external URLs to local files" -ForegroundColor DarkGray
 
+    # ── PART 1: Process HTML Files ──────────────────────────────────────────
     $htmlFiles = Get-ChildItem -Path $OutputDir -Recurse -Include "*.html", "*.htm" -ErrorAction SilentlyContinue
     $modifiedCount = 0
 
@@ -79,26 +65,24 @@ function Repair-ExternalLinks {
             $filename = $urlMap[$url]
             $localPath = Join-Path $OutputDir $filename
 
-            # Compute relative path from the HTML file's directory to the local file
-            $relPath = [System.IO.Path]::GetRelativePath($htmlDir, $localPath)
-            # Normalize to forward slashes for HTML
-            $relPath = $relPath -replace '\\', '/'
+            $relPath = [System.IO.Path]::GetRelativePath($htmlDir, $localPath) -replace '\\', '/'
 
-            # Match the URL with optional query string suffix
-            $urlPattern = [regex]::Escape($url) + '(?:\?[^\s"''#]*)?'
-            if ($raw -match $urlPattern) {
-                $safeRelPath = $relPath.Replace('$', '$$')
-                $raw = $raw -replace $urlPattern, $safeRelPath
+            $escapedUrl = [regex]::Escape($url)
+            # Match exact URL (with optional querystring) strongly bounded by quotes
+            # This prevents accidental partial replacements inside inline Javascript
+            $pattern = '(["''])' + $escapedUrl + '(?:\?[^\s"''#>]+)?\1'
+
+            if ($raw -match $pattern) {
+                $raw = [regex]::Replace($raw, $pattern, "`${1}$relPath`${1}")
                 $modified = $true
             }
         }
 
         if ($modified) {
-            # Strip integrity attributes - the SRI hash may not match local file content
-            # and will cause browsers to refuse loading the resource
-            $raw = $raw -replace '\s+integrity="[^"]*"', ''
-            # Strip crossorigin - not needed for local files, can cause issues with file://
-            $raw = $raw -replace '\s+crossorigin="[^"]*"', ''
+            # Aggressively strip integrity and crossorigin to prevent browser CORS blocking on file://
+            $raw = $raw -replace '(?i)\s+integrity=(["'']).*?\1', ''
+            $raw = $raw -replace '(?i)\s+crossorigin=(["'']).*?\1', ''
+            $raw = $raw -replace '(?i)\s+crossorigin\b', ''
 
             Set-Content -Path $f.FullName -Value $raw -NoNewline
             $modifiedCount++
@@ -106,5 +90,59 @@ function Repair-ExternalLinks {
     }
 
     Write-Host "  Rewrote external links in $modifiedCount HTML file(s)" -ForegroundColor Yellow
+
+    # ── PART 2: Process CSS Files (Fix Absolute Paths) ──────────────────────
+    $cssFiles = Get-ChildItem -Path $OutputDir -Recurse -Include "*.css" -ErrorAction SilentlyContinue
+    $cssModifiedCount = 0
+
+    foreach ($c in $cssFiles) {
+        $rawCss = Get-Content $c.FullName -Raw -ErrorAction SilentlyContinue
+        if (-not $rawCss) { continue }
+
+        $modifiedCss = $false
+        $cssDir = [System.IO.Path]::GetDirectoryName($c.FullName)
+
+        # 1. Replace mapped external CDN urls inside CSS (e.g. Google Fonts)
+        foreach ($url in $urlMap.Keys) {
+            $filename = $urlMap[$url]
+            $localPath = Join-Path $OutputDir $filename
+            $relPath = [System.IO.Path]::GetRelativePath($cssDir, $localPath) -replace '\\', '/'
+
+            $escapedUrl = [regex]::Escape($url)
+            $pattern = 'url\(\s*(["'']?)' + $escapedUrl + '(?:\?[^\s"''#>\)]+)?\1\s*\)'
+
+            if ($rawCss -match $pattern) {
+                $rawCss = [regex]::Replace($rawCss, $pattern, "url(`${1}$relPath`${1})")
+                $modifiedCss = $true
+            }
+        }
+
+        # 2. Convert absolute local paths to relative paths so they don't break on file://
+        # e.g., convert url('/styles/img/bg.png') to url('../../styles/img/bg.png')
+        $relFromRoot = [System.IO.Path]::GetRelativePath($OutputDir, $cssDir)
+        if ($relFromRoot -eq ".") {
+            $prefix = ""
+        } else {
+            $depth = ($relFromRoot -split '[\\/]').Count
+            $prefix = "../" * $depth
+        }
+
+        # Regex match url('/path...') avoiding protocol-relative //paths
+        $absUrlPattern = 'url\(\s*(["'']?)/([^/"''][^\)"'']*)\1\s*\)'
+        if ($rawCss -match $absUrlPattern) {
+            $rawCss = [regex]::Replace($rawCss, $absUrlPattern, "url(`${1}$prefix`${2}`${1})")
+            $modifiedCss = $true
+        }
+
+        if ($modifiedCss) {
+            Set-Content -Path $c.FullName -Value $rawCss -NoNewline
+            $cssModifiedCount++
+        }
+    }
+
+    if ($cssModifiedCount -gt 0) {
+        Write-Host "  Rewrote paths in $cssModifiedCount CSS file(s)" -ForegroundColor Yellow
+    }
+
     return $modifiedCount
 }
