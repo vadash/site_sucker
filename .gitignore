@@ -1,0 +1,24 @@
+# Downloads output
+downloads/
+pd2-wiki/
+
+# Log files
+*.log
+log.txt
+
+# Binary debug files
+bin/wget.exe.debug
+*.debug
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# PowerShell
+*.ps1xml
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.user
