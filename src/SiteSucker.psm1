@@ -16,5 +16,6 @@ Export-ModuleMember -Function @(
     'Get-WgetPath',
     'New-WgetArgs',
     'Get-ExternalMedia',
+    'Repair-ExternalLinks',
     'Write-SiteReport'
 )

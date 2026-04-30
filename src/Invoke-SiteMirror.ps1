@@ -6,6 +6,7 @@
     Orchestrates:
     1. Pass 1: Full site mirror using wget --mirror
     2. Pass 2: Download external media with parallelism
+    3. Pass 3: Rewrite external URLs in HTML to local paths
 
 .PARAMETER Url
     The base URL to mirror.
@@ -142,6 +143,9 @@ function Invoke-SiteMirror {
             }
         }
     }
+
+    # ── PASS 3: Rewrite external URLs to local paths ────────────────────
+    Repair-ExternalLinks -OutputDir $OutputDir -ExternalUrls $extUrls
 
     return $failedUrls
 }
