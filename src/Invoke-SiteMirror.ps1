@@ -84,7 +84,7 @@ function Invoke-SiteMirror {
 
     # Process URLs in parallel batches
     $batchSize = $Settings.ParallelDownloads
-    $urlArray = $extUrls.ToArray()
+    $urlArray = @($extUrls)
     $totalUrls = $urlArray.Count
     $batches = [Math]::Ceiling($totalUrls / $batchSize)
 

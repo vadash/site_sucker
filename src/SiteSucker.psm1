@@ -10,7 +10,11 @@ foreach ($func in $privateFunctions) {
     . $func.FullName
 }
 
-# Export public functions
+# Export all functions for use
 Export-ModuleMember -Function @(
-    'Invoke-SiteMirror'
+    'Invoke-SiteMirror',
+    'Get-WgetPath',
+    'New-WgetArgs',
+    'Get-ExternalMedia',
+    'Write-SiteReport'
 )

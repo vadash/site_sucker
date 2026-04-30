@@ -63,7 +63,13 @@ begin {
 
     # Load settings
     if (Test-Path $SettingsPath) {
-        $Settings = Get-Content $SettingsPath -Raw | ConvertFrom-Json -AsHashtable
+        $jsonContent = Get-Content $SettingsPath -Raw
+        $jsonObject = $jsonContent | ConvertFrom-Json
+        # Convert PSCustomObject to Hashtable
+        $Settings = @{}
+        $jsonObject.PSObject.Properties | ForEach-Object {
+            $Settings[$_.Name] = $_.Value
+        }
     }
     else {
         Write-Warning "Settings file not found at $SettingsPath. Using defaults."
