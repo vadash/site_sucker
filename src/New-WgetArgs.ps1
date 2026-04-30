@@ -43,6 +43,7 @@ function New-WgetArgs {
         "--adjust-extension",
         "--no-verbose",
         "--restrict-file-names=windows",
+        "--no-host-directories",
         "--directory-prefix=$OutputDir",
         "--user-agent=$($Settings.UserAgent)",
         "--timeout=$($Settings.Timeout)",
