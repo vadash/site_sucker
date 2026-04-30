@@ -55,10 +55,14 @@ function Invoke-SiteMirror {
     # ── PASS 1: Full site mirror ───────────────────────────────────────────────
     Write-Host "`n[1/2] Mirroring $Url (Proxies Disabled, Timeouts Active) ..." -ForegroundColor Cyan
 
+    # --page-requisites downloads CSS/JS/images needed to render pages.
+    # --domains restricts all downloads (including requisites) to the target domain only,
+    # preventing external CDN files from bleeding into the project root.
     $pass1Args = New-WgetArgs -Settings $Settings -OutputDir $OutputDir -ExtraArgs @(
         "--mirror",
         "--no-parent",
-        "--page-requisites"
+        "--page-requisites",
+        "--domains=$TargetDomain"
     )
 
     & $WgetPath @pass1Args $Url
@@ -110,9 +114,10 @@ function Invoke-SiteMirror {
                 $env:https_proxy = $null
                 $env:all_proxy = $null
 
-                & $WgetPath @Args $Url 2>&1 | Out-Null
+                # Don't capture output - it can interfere with exit code
+                & $WgetPath @Args $Url 2>$null
                 return @{
-                    Url    = $Url
+                    Url      = $Url
                     ExitCode = $LASTEXITCODE
                 }
             }).AddArgument($WgetPath).AddArgument($pass2Args).AddArgument($url) | Out-Null
