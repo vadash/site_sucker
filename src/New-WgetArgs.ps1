@@ -51,6 +51,12 @@ function New-WgetArgs {
         "--tries=$($Settings.Retries)"
     )
 
+    # Add wait if specified (helps avoid 429 rate limiting)
+    if ($Settings.WaitBetweenRequests -gt 0) {
+        $commonArgs += "--wait=$($Settings.WaitBetweenRequests)"
+        $commonArgs += "--random-wait"  # Adds jitter to avoid bot detection
+    }
+
     # Only add link conversion for pass 1 (mirroring), not pass 2 (plain downloads)
     if (-not $NoLinkConversion) {
         $commonArgs += "--convert-links"

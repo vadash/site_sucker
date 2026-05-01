@@ -4,8 +4,8 @@
   "Retries": 3,
   "MaxDepth": 0,
   "OutputRoot": "./downloads",
-  "WaitBetweenRequests": 0,
-  "ParallelDownloads": 4,
+  "WaitBetweenRequests": 0.5,
+  "ParallelDownloads": 2,
   "RejectPatterns": [
     "action=",
     "oldid=",
