@@ -15,6 +15,9 @@ function Repair-ExternalLinks {
         [string]$OutputDir,
 
         [Parameter(Mandatory = $true)]
+        [string]$MediaDir,
+
+        [Parameter(Mandatory = $true)]
         [System.Collections.Generic.HashSet[string]]$ExternalUrls
     )
 
@@ -23,7 +26,7 @@ function Repair-ExternalLinks {
         return 0
     }
 
-    Write-Host "`n[3/3] Rewriting external URLs to local paths..." -ForegroundColor Cyan
+    Write-Host "`n[3/4] Rewriting external URLs to local paths..." -ForegroundColor Cyan
 
     # Build URL -> local filename mapping
     $urlMap = @{}
@@ -32,7 +35,7 @@ function Repair-ExternalLinks {
             $uri = [System.Uri]::new($url)
             $filename = [System.IO.Path]::GetFileName($uri.AbsolutePath)
             if ($filename) {
-                $localPath = Join-Path $OutputDir $filename
+                $localPath = Join-Path $MediaDir $filename
                 if (Test-Path $localPath -PathType Leaf) {
                     $urlMap[$url] = $filename
                 }
@@ -63,7 +66,7 @@ function Repair-ExternalLinks {
 
         foreach ($url in $urlMap.Keys) {
             $filename = $urlMap[$url]
-            $localPath = Join-Path $OutputDir $filename
+            $localPath = Join-Path $MediaDir $filename
 
             $relPath = [System.IO.Path]::GetRelativePath($htmlDir, $localPath) -replace '\\', '/'
 
@@ -105,7 +108,7 @@ function Repair-ExternalLinks {
         # 1. Replace mapped external CDN urls inside CSS (e.g. Google Fonts)
         foreach ($url in $urlMap.Keys) {
             $filename = $urlMap[$url]
-            $localPath = Join-Path $OutputDir $filename
+            $localPath = Join-Path $MediaDir $filename
             $relPath = [System.IO.Path]::GetRelativePath($cssDir, $localPath) -replace '\\', '/'
 
             $escapedUrl = [regex]::Escape($url)

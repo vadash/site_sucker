@@ -7,6 +7,7 @@
     1. Pass 1: Full site mirror using wget --mirror
     2. Pass 2: Download external media with parallelism
     3. Pass 3: Rewrite external URLs in HTML to local paths
+    4. Pass 4: Strip online-only resources for offline browsing
 
 .PARAMETER Url
     The base URL to mirror.
@@ -54,7 +55,7 @@ function Invoke-SiteMirror {
     $failedUrls = [System.Collections.Generic.List[string]]::new()
 
     # ── PASS 1: Full site mirror ───────────────────────────────────────────────
-    Write-Host "`n[1/2] Mirroring $Url (Proxies Disabled, Timeouts Active) ..." -ForegroundColor Cyan
+    Write-Host "`n[1/4] Mirroring $Url (Proxies Disabled, Timeouts Active) ..." -ForegroundColor Cyan
 
     # --page-requisites downloads CSS/JS/images needed to render pages.
     # --domains restricts all downloads (including requisites) to the target domain only,
@@ -76,15 +77,21 @@ function Invoke-SiteMirror {
     $extUrls = Get-ExternalMedia -OutputDir $OutputDir -TargetDomain $TargetDomain -Settings $Settings
 
     if ($extUrls.Count -eq 0) {
-        Write-Host "No external media URLs found. Skipping pass 2." -ForegroundColor Yellow
+        Write-Host "No external media URLs found. Skipping pass 2 & 3." -ForegroundColor Yellow
+        # Still run pass 4 to clean offline HTML
+        Repair-OfflineHtml -OutputDir $OutputDir
         return $failedUrls
     }
+
+    # Create media subdirectory to avoid dumping images in root
+    $MediaDir = Join-Path $OutputDir "images"
+    $null = New-Item -Path $MediaDir -ItemType Directory -Force -ErrorAction SilentlyContinue
 
     Write-Host "`nDownloading external media (parallel: $($Settings.ParallelDownloads))..." -ForegroundColor Cyan
 
     # Build common args for pass 2 - no link conversion to prevent bleed,
-    # no directories to flatten external media into output dir
-    $pass2Args = New-WgetArgs -Settings $Settings -OutputDir $OutputDir -NoLinkConversion -ExtraArgs @(
+    # no directories to flatten external media into media dir
+    $pass2Args = New-WgetArgs -Settings $Settings -OutputDir $MediaDir -NoLinkConversion -ExtraArgs @(
         "--level=1",
         "--no-directories"
     )
@@ -145,7 +152,10 @@ function Invoke-SiteMirror {
     }
 
     # ── PASS 3: Rewrite external URLs to local paths ────────────────────
-    Repair-ExternalLinks -OutputDir $OutputDir -ExternalUrls $extUrls
+    Repair-ExternalLinks -OutputDir $OutputDir -MediaDir $MediaDir -ExternalUrls $extUrls
+
+    # ── PASS 4: Strip online-only resources for offline browsing ────────────────
+    Repair-OfflineHtml -OutputDir $OutputDir
 
     return $failedUrls
 }
