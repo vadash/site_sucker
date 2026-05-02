@@ -101,6 +101,7 @@ def invoke_site_mirror(
         extra_args=[
             "--level=1",
             "--no-directories",
+            "-nc",
         ],
     )
 

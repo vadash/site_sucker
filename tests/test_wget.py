@@ -122,6 +122,32 @@ def test_build_wget_args_with_reject_patterns(sample_settings: dict):
     assert any("viewtopic\\.php\\?p=[0-9]+" in arg for arg in args)
 
 
+def test_build_wget_args_with_phpbb_sort_and_sid_patterns():
+    """Test that phpBB sort and session ID reject patterns are included."""
+    settings = {
+        "UserAgent": "Test",
+        "Timeout": 10,
+        "Retries": 2,
+        "RejectPatterns": ["&sk=", "&sd=", "&st=", "&sid="],
+        "RejectDomains": [],
+    }
+
+    args = wget.build_wget_args(settings, "/tmp/output")
+
+    # Should include reject regex
+    assert "--reject-regex" in args
+
+    # The patterns should be present in the combined regex
+    reject_regex_args = [args[i + 1] for i, arg in enumerate(args) if arg == "--reject-regex"]
+    combined_regex = " ".join(reject_regex_args)
+
+    # Verify each phpBB pattern is present
+    assert "&sk=" in combined_regex
+    assert "&sd=" in combined_regex
+    assert "&st=" in combined_regex
+    assert "&sid=" in combined_regex
+
+
 def test_build_wget_args_extra_args(sample_settings: dict):
     """Test building wget arguments with extra arguments."""
     args = wget.build_wget_args(

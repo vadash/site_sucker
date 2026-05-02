@@ -53,7 +53,18 @@
     "ucp.php",            // user control panel (requires login)
     "mcp.php",            // moderator control panel (requires login)
     "faq.php",            // FAQ pages (usually static, low priority)
-    "download/file.php"   // attachments/avatars (large, optional; downloaded separately if needed)
+    "download/file.php",   // attachments/avatars (large, optional; downloaded separately if needed)
+    "&sk=",                // Sort Key (Author, Time, Subject) - prevents re-downloading forum indexes in every sort order
+    "&sd=",                // Sort Direction (Ascending, Descending) - same as above
+    "&st=",                // Sort Time (1 day, 7 days, etc.) - same as above
+    // ─── ⚠️ EXPERIMENTAL: sid= Session ID blocking ─────────────────────
+    // phpBB appends &sid=<32-char-hex> to every URL on the first page load.
+    // This can cause infinite crawl loops. Blocking it is generally safe for
+    // guest/archival crawls because Wget handles cookies natively and drops
+    // sid after the first few requests. HOWEVER: if the crawler stops
+    // discovering ANY links after adding this, REMOVE THIS PATTERN IMMEDIATELY
+    // — it means the starting page links all carry sid= and Wget rejects them all.
+    "&sid="                // Session IDs (infinite loop trap — TEST FIRST!)
   ],
 
   // Domains to block entirely (analytics, tracking)
