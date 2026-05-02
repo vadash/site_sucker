@@ -32,15 +32,20 @@ def _is_css_file(file_path: Path) -> bool:
     return file_path.suffix.lower() == '.css'
 
 
-def _validate_content(content: str, file_path: Path) -> tuple[bool, str]:
+def _validate_content(content: str, file_path: Path, original_content: str = "") -> tuple[bool, str]:
     """Validate content after a replacement step.
 
-    For HTML files, checks structural integrity.
+    For HTML files, checks that no structural tags were accidentally removed:
+    - If </head> was present before but is now missing: reject
+    - If </body> was present before but is now missing: reject
+    - If <body> was present before but is now missing: reject
+
     For CSS files, just checks content is non-empty.
 
     Args:
         content: The content to validate.
         file_path: Path to the file (used to determine file type).
+        original_content: The content before the replacement (for comparison).
 
     Returns:
         Tuple of (is_valid, error_message).
@@ -51,20 +56,25 @@ def _validate_content(content: str, file_path: Path) -> tuple[bool, str]:
             return False, "CSS content is empty"
         return True, ""
     else:
-        # HTML validation: use existing validation
-        from site_sucker.validate_html import validate_html_string
-        result = validate_html_string(content)
+        # HTML validation - check that no structural tags were removed
+        issues = []
 
-        if not result["valid"]:
-            issues = []
-            if result["missing_head_close"]:
-                issues.append("missing </head>")
-            if result["missing_body_open"]:
-                issues.append("missing <body>")
-            if result["missing_body_close"]:
-                issues.append("missing </body>")
-            if result["empty_body"]:
-                issues.append("empty body content")
+        had_head_close = bool(re.search(r'</head\s*>', original_content, re.IGNORECASE))
+        has_head_close = bool(re.search(r'</head\s*>', content, re.IGNORECASE))
+        if had_head_close and not has_head_close:
+            issues.append("missing </head>")
+
+        had_body_open = bool(re.search(r'<body[^>]*>', original_content, re.IGNORECASE))
+        has_body_open = bool(re.search(r'<body[^>]*>', content, re.IGNORECASE))
+        if had_body_open and not has_body_open:
+            issues.append("missing <body>")
+
+        had_body_close = bool(re.search(r'</body\s*>', original_content, re.IGNORECASE))
+        has_body_close = bool(re.search(r'</body\s*>', content, re.IGNORECASE))
+        if had_body_close and not has_body_close:
+            issues.append("missing </body>")
+
+        if issues:
             return False, f"HTML validation failed: {', '.join(issues)}"
 
     return True, ""
@@ -186,8 +196,8 @@ def run_replacement_pipeline(
         if new_content == current_content:
             continue
 
-        # Validate the new content
-        is_valid, error_message = _validate_content(new_content, file_path)
+        # Validate the new content (pass current_content as baseline for comparison)
+        is_valid, error_message = _validate_content(new_content, file_path, current_content)
 
         if is_valid:
             # Keep the change

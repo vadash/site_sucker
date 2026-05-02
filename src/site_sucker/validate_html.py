@@ -68,9 +68,8 @@ def validate_html_string(content: str) -> dict[str, bool]:
             body_without_code = re.sub(r'<!--[\s\S]*?-->', '', body_without_code)
             # Strip HTML tags
             text_only = re.sub(r'<[^>]+>', '', body_without_code)
-            # Check if there's any meaningful text (more than 1 non-whitespace char)
-            # Lowered threshold from 20 to 1 to allow small test files
-            if len(re.sub(r'\s+', '', text_only).strip()) < 1:
+            # Check if there's any meaningful text (more than 20 non-whitespace chars)
+            if len(re.sub(r'\s+', '', text_only).strip()) < 20:
                 results["empty_body"] = True
                 results["valid"] = False
 

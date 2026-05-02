@@ -47,7 +47,7 @@ def repair_offline_html(output_dir: Path | str, log_dir: Path | None = None) -> 
         ReplacementStep(
             name="Remove MediaWiki load.php stylesheets",
             pattern=re.compile(
-                r'<link\s+[^>]*rel=(")stylesheet(")[^>]*href="https?://[^"]*load\.php[^"]*\?[^"]*"[^>]*/?>'
+                r'<link\s+[^>]*rel=["\']stylesheet["\'][^>]*href=["\']https?://[^"\']*load\.php[^"\']*\?[^"\']*["\'][^>]*/?>'
             ),
             replacement='',
         ),
@@ -61,23 +61,23 @@ def repair_offline_html(output_dir: Path | str, log_dir: Path | None = None) -> 
         ),
         ReplacementStep(
             name="Remove preconnect hints",
-            pattern=re.compile(r'<link\s+[^>]*rel=(")preconnect(")[^>]*/?>'),
+            pattern=re.compile(r'<link\s+[^>]*rel=["\']preconnect["\'][^>]*/?>'),
             replacement='',
         ),
         ReplacementStep(
             name="Remove dns-prefetch hints",
-            pattern=re.compile(r'<link\s+[^>]*rel=(")dns-prefetch(")[^>]*/?>'),
+            pattern=re.compile(r'<link\s+[^>]*rel=["\']dns-prefetch["\'][^>]*/?>'),
             replacement='',
         ),
         ReplacementStep(
             name="Remove EditURI link",
-            pattern=re.compile(r'<link\s+[^>]*rel=(")EditURI(")[^>]*/?>'),
+            pattern=re.compile(r'<link\s+[^>]*rel=["\']EditURI["\'][^>]*/?>'),
             replacement='',
         ),
         ReplacementStep(
             name="Remove alternate feed links (Atom/RSS)",
             pattern=re.compile(
-                r'<link\s+[^>]*rel=(")alternate(")[^>]*type="application/(atom|rss)\+xml"[^>]*/?>'
+                r'<link\s+[^>]*rel=["\']alternate["\'][^>]*type=["\']application/(atom|rss)\+xml["\'][^>]*/?>'
             ),
             replacement='',
         ),
@@ -117,12 +117,12 @@ def repair_offline_html(output_dir: Path | str, log_dir: Path | None = None) -> 
         ),
         ReplacementStep(
             name="Remove inline analytics push calls (trackPageView)",
-            pattern=re.compile(r'\.push\(\s*\[?\s*(")trackPageView(").*?\);?'),
+            pattern=re.compile(r"""\.push\(\s*\[?\s*['"]trackPageView['"].*?\);?"""),
             replacement='',
         ),
         ReplacementStep(
             name="Remove inline analytics push calls (enableLinkTracking)",
-            pattern=re.compile(r'\.push\(\s*\[?\s*(")enableLinkTracking(").*?\);?'),
+            pattern=re.compile(r"""\.push\(\s*\[?\s*['"]enableLinkTracking['"].*?\);?"""),
             replacement='',
         ),
         ReplacementStep(
