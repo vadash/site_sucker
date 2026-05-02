@@ -5,6 +5,11 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup
 
+# Control characters that should never appear in valid HTML content.
+# Excludes: tab (0x09), newline (0x0A), carriage return (0x0D).
+# Includes: DEL (0x7F) and C0 controls (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F).
+_CONTROL_CHAR_RE = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
+
 
 def validate_html_string(content: str) -> dict[str, bool]:
     """Validate a single HTML string for structural integrity using BeautifulSoup.
@@ -13,6 +18,7 @@ def validate_html_string(content: str) -> dict[str, bool]:
     - Missing head element
     - Missing body element
     - Empty body content (no visible text)
+    - Binary/control characters in content (corrupted download)
 
     Args:
         content: HTML content string to validate.
@@ -23,7 +29,8 @@ def validate_html_string(content: str) -> dict[str, bool]:
             "valid": bool,
             "missing_head": bool,
             "missing_body": bool,
-            "empty_body": bool
+            "empty_body": bool,
+            "has_binary_content": bool
         }
     """
     results = {
@@ -31,11 +38,18 @@ def validate_html_string(content: str) -> dict[str, bool]:
         "missing_head": False,
         "missing_body": False,
         "empty_body": False,
+        "has_binary_content": False,
     }
 
     if not content:
         results["valid"] = False
         return results
+
+    # Check for binary/control characters that indicate corrupted content.
+    # These should never appear in valid HTML (tab/newline/CR are excluded).
+    if _CONTROL_CHAR_RE.search(content):
+        results["has_binary_content"] = True
+        results["valid"] = False
 
     # Use regex to check for original presence of head/body tags
     # BeautifulSoup's lxml parser auto-adds missing tags, so we check the raw content first
@@ -100,6 +114,7 @@ def validate_html_files(output_dir: Path | str) -> dict[str, list[str]]:
         "missing_head": [],
         "missing_body": [],
         "empty_body": [],
+        "has_binary_content": [],
         "all_valid": True,
     }
 
@@ -127,6 +142,9 @@ def validate_html_files(output_dir: Path | str) -> dict[str, list[str]]:
 
             if validation["empty_body"]:
                 results["empty_body"].append(str(html_file.relative_to(output_dir)))
+
+            if validation["has_binary_content"]:
+                results["has_binary_content"].append(str(html_file.relative_to(output_dir)))
 
     return results
 
@@ -164,6 +182,13 @@ def print_validation_results(results: dict[str, list[str]]) -> None:
             print(f"    - {f}")
         if len(results['empty_body']) > 5:
             print(f"    ... and {len(results['empty_body']) - 5} more")
+
+    if results["has_binary_content"]:
+        print(f"  Binary/control characters detected ({len(results['has_binary_content'])} files):")
+        for f in results["has_binary_content"][:5]:
+            print(f"    - {f}")
+        if len(results['has_binary_content']) > 5:
+            print(f"    ... and {len(results['has_binary_content']) - 5} more")
 
     print("=" * 60)
     print("This indicates an incomplete download. Possible causes:")

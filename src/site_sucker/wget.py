@@ -55,6 +55,7 @@ def build_wget_args(
         f"--user-agent={settings['UserAgent']}",
         f"--timeout={settings['Timeout']}",
         f"--tries={settings['Retries']}",
+        "--header=Accept-Encoding: identity",
     ]
 
     # Add wait if specified (helps avoid 429 rate limiting)

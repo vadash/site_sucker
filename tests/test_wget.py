@@ -71,6 +71,7 @@ def test_build_wget_args_basic(sample_settings: dict):
     assert f"--user-agent={sample_settings['UserAgent']}" in args
     assert f"--timeout={sample_settings['Timeout']}" in args
     assert f"--tries={sample_settings['Retries']}" in args
+    assert "--header=Accept-Encoding: identity" in args
 
 
 def test_build_wget_args_with_wait(sample_settings: dict):

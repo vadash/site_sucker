@@ -2,7 +2,7 @@
 
 import pytest
 
-from site_sucker.validate_html import print_validation_results, validate_html_files
+from site_sucker.validate_html import print_validation_results, validate_html_files, validate_html_string
 
 
 def test_validate_html_valid_page(tmp_path: Path):
@@ -248,6 +248,7 @@ def test_print_validation_results_valid(capsys: pytest.CaptureFixture[str]):
         "missing_head": [],
         "missing_body": [],
         "empty_body": [],
+        "has_binary_content": [],
         "all_valid": True,
     }
 
@@ -268,6 +269,7 @@ def test_print_validation_results_invalid(capsys: pytest.CaptureFixture[str], tm
         "missing_head": ["broken1.html", "broken2.html"],
         "missing_body": [],
         "empty_body": ["broken1.html"],
+        "has_binary_content": [],
         "all_valid": False,
     }
 
@@ -279,3 +281,98 @@ def test_print_validation_results_invalid(capsys: pytest.CaptureFixture[str], tm
     assert "Empty body content" in captured.out
     assert "broken1.html" in captured.out
     assert "incomplete download" in captured.out.lower()
+
+
+def test_validate_html_binary_content_del_char(tmp_path: Path):
+    """Test detection of DEL character (0x7F) in HTML content."""
+    html_file = tmp_path / "test.html"
+    # Simulates the corruption seen in real index.html download
+    html_content = '<!DOCTYPE html>\n<html>\n<head><title>Test</title></head>\n<body>\n'
+    html_content += '<h1>Welcome to the Test Page</h1>\n'
+    html_content += '<p>Some content here</p>\n'
+    # Inject binary garbage with DEL char (0x7F)
+    html_content += '\x7f\xb0\xd0\xbd\xd0\xb8\xd0\xbe'
+    html_content += '\n</body>\n</html>'
+    html_file.write_bytes(html_content.encode('utf-8', errors='surrogateescape'))
+
+    results = validate_html_files(tmp_path)
+
+    assert not results["all_valid"]
+    assert "test.html" in results["has_binary_content"]
+
+
+def test_validate_html_binary_content_null_byte(tmp_path: Path):
+    """Test detection of null byte (0x00) in HTML content."""
+    html_file = tmp_path / "test.html"
+    html_content = '<!DOCTYPE html>\n<html>\n<head><title>Test</title></head>\n<body>\n'
+    html_content += '<h1>Welcome to the Test Page</h1>\n'
+    html_content += '\x00corrupted'
+    html_content += '\n</body>\n</html>'
+    html_file.write_bytes(html_content.encode('utf-8', errors='surrogateescape'))
+
+    results = validate_html_files(tmp_path)
+
+    assert not results["all_valid"]
+    assert "test.html" in results["has_binary_content"]
+
+
+def test_validate_html_binary_content_control_chars(tmp_path: Path):
+    """Test detection of various control characters in HTML."""
+    html_content = '<!DOCTYPE html>\n<html>\n<head><title>T</title></head>\n<body>\n'
+    html_content += '<h1>Welcome to the Test Page with content</h1>\n'
+    html_content += 'BINARY\x01\x02\x03\x04DATA'
+    html_content += '\n</body>\n</html>'
+
+    result = validate_html_string(html_content)
+
+    assert not result["valid"]
+    assert result["has_binary_content"]
+
+
+def test_validate_html_no_binary_clean_content(tmp_path: Path):
+    """Test that clean HTML passes binary content check."""
+    html_file = tmp_path / "test.html"
+    html_content = '''<!DOCTYPE html>
+<html>
+<head>
+    <title>Test</title>
+</head>
+<body>
+    <h1>Welcome to the Test Page</h1>
+    <p>Normal content with tabs\tand newlines\nare fine.</p>
+</body>
+</html>'''
+    html_file.write_text(html_content)
+
+    results = validate_html_files(tmp_path)
+
+    assert results["all_valid"]
+    assert len(results["has_binary_content"]) == 0
+
+
+def test_validate_html_string_returns_binary_key():
+    """Test that validate_html_string always returns has_binary_content key."""
+    result = validate_html_string("<html><head></head><body>Content here</body></html>")
+    assert "has_binary_content" in result
+    assert result["has_binary_content"] is False
+
+    result = validate_html_string("")
+    assert "has_binary_content" in result
+    assert result["has_binary_content"] is False
+
+
+def test_print_validation_results_binary_content(capsys: pytest.CaptureFixture[str]):
+    """Test print output for binary content detection."""
+    results = {
+        "missing_head": [],
+        "missing_body": [],
+        "empty_body": [],
+        "has_binary_content": ["index.html"],
+        "all_valid": False,
+    }
+
+    print_validation_results(results)
+
+    captured = capsys.readouterr()
+    assert "Binary/control characters" in captured.out
+    assert "index.html" in captured.out
