@@ -80,6 +80,13 @@ function New-WgetArgs {
         $commonArgs += "--reject-regex", ".*($combinedReject).*"
     }
 
+    # Forum-specific: reject viewtopic.php?p= per-post duplicates
+    # These are "jump to post" URLs that duplicate thread pages captured by viewtopic.php?t=XXX&start=YYY
+    # Pattern rejects: (1) viewtopic.php?...&p=... (has p= as additional param, always duplicate)
+    #                 (2) viewtopic.php?p=... (has p= as first param, duplicate of t= page)
+    # We keep: viewtopic.php?t=XXX and viewtopic.php?t=XXX&start=YYY (actual thread pages)
+    $commonArgs += "--reject-regex", "viewtopic\.php.*&p=\\d+|viewtopic\\.php\\?p=\\d+"
+
     # Add any extra arguments
     if ($ExtraArgs) {
         $commonArgs += $ExtraArgs

@@ -77,6 +77,26 @@ function Repair-OfflineHtml {
         $raw = $raw -replace '\.push\(\s*\[?\s*(")enableLinkTracking(").*?\);?', ''
         if ($raw -ne $original) { $modified = $true; $original = $raw }
 
+        # phpBB-specific: Remove posting.php (reply forms) - useless offline
+        $raw = $raw -replace '<a\s+[^>]*href="posting\.php[^"]*"[^>]*>.*?</a>', ''
+        if ($raw -ne $original) { $modified = $true; $original = $raw }
+
+        # phpBB-specific: Remove tradegold.php links (trade pages, not available offline)
+        $raw = $raw -replace '<a\s+[^>]*href="tradegold\.php[^"]*"[^>]*>.*?</a>', ''
+        if ($raw -ne $original) { $modified = $true; $original = $raw }
+
+        # phpBB-specific: Remove memberlist.php links (user profiles, not downloaded)
+        $raw = $raw -replace '<a\s+[^>]*href="memberlist\.php[^"]*"[^>]*>.*?</a>', ''
+        if ($raw -ne $original) { $modified = $true; $original = $raw }
+
+        # phpBB-specific: Remove search.php links (search doesn't work offline)
+        $raw = $raw -replace '<a\s+[^>]*href="search\.php[^"]*"[^>]*>.*?</a>', ''
+        if ($raw -ne $original) { $modified = $true; $original = $raw }
+
+        # phpBB-specific: Remove ucp/mcp.php links (user/mod control panels)
+        $raw = $raw -replace '<a\s+[^>]*href="(ucp|mcp)\.php[^"]*"[^>]*>.*?</a>', ''
+        if ($raw -ne $original) { $modified = $true; $original = $raw }
+
         if ($modified) {
             # Inject minimal fallback CSS to ensure page is readable without remote styles
             $fallbackStyle = @'
