@@ -8,8 +8,10 @@ import pytest
 from site_sucker import settings
 
 
-def test_load_settings_default():
+def test_load_settings_default(tmp_path: Path, monkeypatch):
     """Test loading default settings when no file exists."""
+    # Change to temp directory where no settings file exists
+    monkeypatch.chdir(tmp_path)
     result = settings.load_settings(None)
     assert result["UserAgent"] == settings.DEFAULT_SETTINGS["UserAgent"]
     assert result["Timeout"] == settings.DEFAULT_SETTINGS["Timeout"]
