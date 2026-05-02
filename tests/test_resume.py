@@ -105,7 +105,7 @@ def test_resolve_local_file_exact_match(tmp_path):
     test_file = tmp_path / "page.html"
     test_file.write_text("<html>test</html>")
 
-    result = resolve_local_file(test_file)
+    result = resolve_local_file(test_file, tmp_path)
     assert result == test_file
 
 
@@ -115,14 +115,43 @@ def test_resolve_local_file_html_appended(tmp_path):
     test_file.write_text("<html>test</html>")
 
     base_path = tmp_path / "page"
-    result = resolve_local_file(base_path)
+    result = resolve_local_file(base_path, tmp_path)
     assert result == test_file
 
 
 def test_resolve_local_file_not_found(tmp_path):
     """Test resolve_local_file returns None when not found."""
     base_path = tmp_path / "nonexistent"
-    assert resolve_local_file(base_path) is None
+    assert resolve_local_file(base_path, tmp_path) is None
+
+
+def test_resolve_local_file_flattened_fallback(tmp_path):
+    """Test resolve_local_file finds file at output_dir root when expected in subdirectory."""
+    # Create file at root (simulating wget's flat save behavior)
+    root_file = tmp_path / "image.png"
+    root_file.write_bytes(b"\x89PNG")
+
+    # Look for it in a subdirectory path
+    expected_path = tmp_path / "images" / "art" / "image.png"
+    result = resolve_local_file(expected_path, tmp_path)
+    assert result == root_file
+
+
+def test_resolve_local_file_exact_match_preferred_over_flat(tmp_path):
+    """Test that exact path match is preferred over flattened fallback."""
+    # Create file at expected subdirectory path
+    sub_dir = tmp_path / "images"
+    sub_dir.mkdir()
+    exact_file = sub_dir / "image.png"
+    exact_file.write_bytes(b"\x89PNG_exact")
+
+    # Also create file at root (flat)
+    root_file = tmp_path / "image.png"
+    root_file.write_bytes(b"\x89PNG_flat")
+
+    expected_path = tmp_path / "images" / "image.png"
+    result = resolve_local_file(expected_path, tmp_path)
+    assert result == exact_file
 
 
 def test_discover_links_basic(tmp_path, sample_html):

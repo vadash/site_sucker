@@ -363,8 +363,8 @@ def repair_internal_links(
             # Map URL to expected local file path
             expected_path = url_to_filepath(absolute_url, output_dir)
 
-            # Resolve actual file (may have .html suffix)
-            actual_path = resolve_local_file(expected_path)
+            # Resolve actual file (may have .html suffix or flattened path)
+            actual_path = resolve_local_file(expected_path, output_dir)
 
             if not actual_path:
                 # File doesn't exist locally, leave link unchanged

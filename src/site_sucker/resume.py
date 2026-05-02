@@ -79,11 +79,17 @@ def file_exists_on_disk(expected_path: Path) -> bool:
     return False
 
 
-def resolve_local_file(expected_path: Path) -> Path | None:
+def resolve_local_file(expected_path: Path, output_dir: Path) -> Path | None:
     """Resolve which file actually exists on disk (with or without .html suffix).
+
+    Checks three locations in order:
+    1. Exact expected path
+    2. With .html appended (wget's --adjust-extension behavior)
+    3. Flattened to output_dir root (wget without -r saves files flat)
 
     Args:
         expected_path: Expected path from url_to_filepath().
+        output_dir: Root output directory for flattened file fallback.
 
     Returns:
         Actual file path if it exists, None otherwise.
@@ -96,6 +102,12 @@ def resolve_local_file(expected_path: Path) -> Path | None:
     html_path = Path(str(expected_path) + ".html")
     if html_path.exists() and html_path.is_file():
         return html_path
+
+    # Fallback: check flattened path (wget without -r saves files at root)
+    # e.g., expected images/art/foo.jpg -> check output_dir/foo.jpg
+    flat_path = output_dir / expected_path.name
+    if flat_path.exists() and flat_path.is_file():
+        return flat_path
 
     return None
 
@@ -258,7 +270,9 @@ def crawl_loop(
                 f"--timeout={timeout}",
                 f"--tries={retries}",
                 "--header=Accept-Encoding: identity",
-                "--level=1",  # No recursion, fetch single page
+                "-r",            # Recursive mode needed for directory hierarchy
+                "--level=1",     # No actual recursion, fetch single page
+                "--no-parent",   # Don't traverse up
                 "--adjust-extension",
                 current_url,
             ]
@@ -277,7 +291,7 @@ def crawl_loop(
             print(f"  [{iteration}] Using cached (depth={depth}): {current_url}")
 
         # Resolve the actual file path (with or without .html suffix)
-        actual_path = resolve_local_file(expected_path)
+        actual_path = resolve_local_file(expected_path, output_dir)
         if not actual_path:
             print(f"    Error: File not found after download attempt: {expected_path}")
             continue
