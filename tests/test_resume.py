@@ -26,6 +26,27 @@ def test_url_to_filepath_basic():
     assert result == Path("/downloads/wiki/Main_Page")
 
 
+def test_url_to_filepath_root_url():
+    """Test root URL is mapped to index.html."""
+    output_dir = Path("/downloads")
+
+    # Root URL
+    result = url_to_filepath("https://example.com/", output_dir)
+    assert result == Path("/downloads/index.html")
+
+    # Bare domain (no trailing slash)
+    result = url_to_filepath("https://example.com", output_dir)
+    assert result == Path("/downloads/index.html")
+
+
+def test_url_to_filepath_trailing_slash():
+    """Test trailing-slash URL is mapped to index.html."""
+    output_dir = Path("/downloads")
+
+    result = url_to_filepath("https://example.com/wiki/", output_dir)
+    assert result == Path("/downloads/wiki/index.html")
+
+
 def test_url_to_filepath_with_query():
     """Test URL with query parameters (? becomes @)."""
     output_dir = Path("/downloads")
@@ -111,6 +132,7 @@ def test_discover_links_basic(tmp_path, sample_html):
 
     links = discover_links(
         html_file,
+        base_url="https://example.com/test.html",
         target_domain="example.com",
         reject_patterns=[],
         reject_domains=[],
@@ -129,6 +151,7 @@ def test_discover_links_reject_patterns(tmp_path, sample_html):
 
     links = discover_links(
         html_file,
+        base_url="https://example.com/test.html",
         target_domain="example.com",
         reject_patterns=["page.html"],  # Reject this specific page
         reject_domains=[],
@@ -145,6 +168,7 @@ def test_discover_links_reject_domains(tmp_path, sample_html):
 
     links = discover_links(
         html_file,
+        base_url="https://example.com/test.html",
         target_domain="example.com",
         reject_patterns=[],
         reject_domains=["example.com"],  # Reject the entire domain
@@ -160,7 +184,6 @@ def test_discover_links_non_http(tmp_path):
         <a href="mailto:test@example.com">Email</a>
         <a href="javascript:void(0)">JS</a>
         <a href="#section">Anchor</a>
-        <a href="/relative">Relative</a>
     </html>"""
 
     html_file = tmp_path / "test.html"
@@ -168,13 +191,64 @@ def test_discover_links_non_http(tmp_path):
 
     links = discover_links(
         html_file,
+        base_url="https://example.com/test.html",
         target_domain="example.com",
         reject_patterns=[],
         reject_domains=[],
     )
 
-    # Should be empty - no http/https links
+    # Should be empty - no valid http/https links
     assert len(links) == 0
+
+
+def test_discover_links_relative(tmp_path):
+    """Test that relative links are resolved using base_url."""
+    html = """<html>
+        <a href="/wiki/Main_Page">Absolute relative</a>
+        <a href="subpage.html">Relative to current</a>
+        <a href="../parent.html">Parent relative</a>
+    </html>"""
+
+    html_file = tmp_path / "test.html"
+    html_file.write_text(html)
+
+    links = discover_links(
+        html_file,
+        base_url="https://example.com/wiki/index.html",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    assert "https://example.com/wiki/Main_Page" in links
+    assert "https://example.com/wiki/subpage.html" in links
+    assert "https://example.com/parent.html" in links
+
+
+def test_discover_links_mixed_absolute_and_relative(tmp_path):
+    """Test that both absolute and relative links are discovered."""
+    html = """<html>
+        <a href="https://example.com/absolute.html">Absolute</a>
+        <a href="/root-relative.html">Root relative</a>
+        <a href="relative.html">Relative</a>
+        <a href="https://other-domain.com/page.html">External</a>
+    </html>"""
+
+    html_file = tmp_path / "test.html"
+    html_file.write_text(html)
+
+    links = discover_links(
+        html_file,
+        base_url="https://example.com/dir/page.html",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    assert "https://example.com/absolute.html" in links
+    assert "https://example.com/root-relative.html" in links
+    assert "https://example.com/dir/relative.html" in links
+    assert "https://other-domain.com/page.html" not in links
 
 
 def test_discover_links_fragment_normalization(tmp_path):
@@ -189,6 +263,7 @@ def test_discover_links_fragment_normalization(tmp_path):
 
     links = discover_links(
         html_file,
+        base_url="https://example.com/test.html",
         target_domain="example.com",
         reject_patterns=[],
         reject_domains=[],

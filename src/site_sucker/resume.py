@@ -35,6 +35,10 @@ def url_to_filepath(url: str, output_dir: Path) -> Path:
     # wget converts ? and # to @ for Windows compatibility
     path = parsed.path
 
+    # Handle root URLs and trailing slashes (Wget saves these as index.html)
+    if not path or path.endswith("/"):
+        path = path + "index.html"
+
     # Append query parameters (if any) - wget converts ? to @
     if parsed.query:
         # Escape / in query params as %2F to avoid directory creation
@@ -98,6 +102,7 @@ def resolve_local_file(expected_path: Path) -> Path | None:
 
 def discover_links(
     html_file: Path,
+    base_url: str,
     target_domain: str,
     reject_patterns: list[str] | None = None,
     reject_domains: list[str] | None = None,
@@ -106,6 +111,7 @@ def discover_links(
 
     Args:
         html_file: Path to HTML file to parse.
+        base_url: Base URL of this HTML file (used to resolve relative links).
         target_domain: Primary domain to filter links (only keep links to this domain).
         reject_patterns: List of substring patterns to reject (e.g., ["action=", "Special:"]).
         reject_domains: List of domains to reject (e.g., ["analytics.example.com"]).
@@ -130,14 +136,21 @@ def discover_links(
     for tag in soup.find_all("a", href=True):
         href = tag["href"]
 
-        # Skip non-HTTP links
-        if not href.startswith(("http://", "https://")):
+        # Skip anchors, javascript, and mailto links
+        if href.startswith(("#", "javascript:", "mailto:")):
             continue
+
+        # Convert relative links to absolute using base_url
+        absolute_url = urljoin(base_url, href)
 
         # Parse URL
         try:
-            parsed = urlparse(href)
+            parsed = urlparse(absolute_url)
         except Exception:
+            continue
+
+        # Skip non-HTTP links
+        if parsed.scheme not in ("http", "https"):
             continue
 
         # Check if belongs to target domain
@@ -148,7 +161,7 @@ def discover_links(
         if reject_patterns:
             rejected = False
             for pattern in reject_patterns:
-                if pattern in href:
+                if pattern in absolute_url:
                     rejected = True
                     break
             if rejected:
@@ -160,7 +173,7 @@ def discover_links(
                 continue
 
         # Normalize URL: strip fragment to avoid duplicates
-        normalized = href.split("#")[0]
+        normalized = absolute_url.split("#")[0]
         links.add(normalized)
 
     return links
@@ -247,7 +260,6 @@ def crawl_loop(
                 f"--tries={retries}",
                 "--header=Accept-Encoding: identity",
                 "--level=1",  # No recursion, fetch single page
-                "--no-directories",
                 "--adjust-extension",
                 current_url,
             ]
@@ -274,6 +286,7 @@ def crawl_loop(
         # Parse HTML for links (regardless of whether we just downloaded or used cache)
         new_links = discover_links(
             actual_path,
+            current_url,
             target_domain,
             reject_patterns,
             reject_domains,

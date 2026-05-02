@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
@@ -331,24 +331,36 @@ def repair_internal_links(
 
         modified = False
 
+        # Construct the original base URL of this local HTML file
+        try:
+            rel_path_from_root = html_file.resolve().relative_to(output_dir.resolve()).as_posix()
+        except ValueError:
+            rel_path_from_root = ""
+        base_url = f"https://{target_domain}/{rel_path_from_root}"
+
         # Rewrite all href attributes pointing to target_domain
         for tag in soup.find_all("a", href=True):
             href = tag["href"]
 
-            # Skip non-HTTP links
-            if not href.startswith(("http://", "https://")):
+            # Skip anchors, javascript, and mailto links
+            if href.startswith(("#", "javascript:", "mailto:")):
                 continue
+
+            # Convert to absolute URL (handles relative links like /about_us.php)
+            absolute_url = urljoin(base_url, href)
 
             # Parse URL to check hostname
             try:
-                parsed = urlparse(href)
+                parsed = urlparse(absolute_url)
+                if parsed.scheme not in ("http", "https"):
+                    continue
                 if parsed.hostname != target_domain:
                     continue
             except Exception:
                 continue
 
             # Map URL to expected local file path
-            expected_path = url_to_filepath(href, output_dir)
+            expected_path = url_to_filepath(absolute_url, output_dir)
 
             # Resolve actual file (may have .html suffix)
             actual_path = resolve_local_file(expected_path)
