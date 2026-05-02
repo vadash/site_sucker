@@ -38,6 +38,7 @@ SiteSucker is a modular Python application that mirrors websites for offline use
   - `repair_offline_html()`: Removes online-only resources
   - Handles MediaWiki (load.php), phpBB, tracking scripts
   - Injects fallback CSS
+  - **CAUTION**: Regex patterns removing `<script>` blocks MUST use `(?:(?!</script>)[\s\S])*?` boundary guards (see Regex Pitfalls)
 
 ### Configuration & Reporting
 
@@ -48,6 +49,11 @@ SiteSucker is a modular Python application that mirrors websites for offline use
 - **`report.py`**: Report generation
   - `write_site_report()`: Generates download summary
   - Creates failures.log for failed URLs
+
+- **`validate_html.py`**: HTML integrity checker
+  - `validate_html_files()`: Detects truncated/corrupt downloads
+  - Checks for missing `</head>`, `<body>`, `</body>` tags and empty bodies
+  - Runs after wget pass 1, before post-processing
 
 ### CLI
 
@@ -148,6 +154,15 @@ When fixing bugs:
 - Path handling assumes Windows separators
 - No cross-platform testing required
 
+### Running Python
+
+- **System `python`/`python3` does NOT work** — Windows App Execution Aliases intercept it and show a Store prompt.
+- **`uv run python` fails** — the editable install is marked `--no-build`.
+- **Correct path**: `/.venv/Scripts/python.exe` (relative to project root).
+- For inline scripts: `<project-root>/.venv/Scripts/python.exe -c "..."`
+- For tests: `<project-root>/.venv/Scripts/python.exe -m pytest`
+- **Temp files**: `curl -o /tmp/file` on Windows Git Bash saves to `C:/Users/<user>/AppData/Local/Temp/file`, not `/tmp/`. Use the Windows path when reading from Python.
+
 ## Settings File Schema
 
 ```json
@@ -194,6 +209,26 @@ The tool doesn't have a verbose flag, but you can:
 - **Rate limiting**: Increase `WaitBetweenRequests`
 - **Large downloads**: Monitor disk space
 
+## Regex Pitfalls
+
+### Never use `[\s\S]*?` across `<script>` boundaries
+
+Patterns like `<script[^>]*>[\s\S]*?something[\s\S]*?</script>` will match from the **first** `<script>` tag that can reach `something` via `[\s\S]*?` — even if that means crossing intermediate `</script>` tags. This can delete entire page bodies.
+
+**Bad** (crosses `</script>` boundaries):
+```python
+r'<script[^>]*>[\s\S]*?google-analytics\.com[\s\S]*?</script>'
+```
+
+**Good** (stays within one script block using negative lookahead):
+```python
+r'<script[^>]*>(?:(?!</script>)[\s\S])*?google-analytics\.com(?:(?!</script>)[\s\S])*?</script>'
+```
+
+The `(?:(?!</script>)[\s\S])*?` construct matches any character (`[\s\S]`) but only after confirming the upcoming text is NOT `</script>`. This prevents the match from leaking into adjacent script blocks or page content.
+
+**Rule**: Any regex that matches `<script>...X...</script>` where X is content found inside script blocks MUST use the `(?:(?!</script>)[\s\S])*?` boundary guard instead of `[\s\S]*?`.
+
 ## Future Enhancements
 
 Potential areas for improvement:
@@ -202,7 +237,6 @@ Potential areas for improvement:
 2. **Resume support**: Track completed URLs for resume capability
 3. **Different output formats**: PDF, single-file HTML
 4. **Content filtering**: Regex-based content inclusion/exclusion
-5. **Validation**: Check downloaded file integrity
 
 ## Contact & Support
 
