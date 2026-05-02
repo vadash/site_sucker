@@ -1,5 +1,6 @@
 """External and internal URL rewriter for downloaded HTML and CSS files."""
 
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -369,14 +370,13 @@ def repair_internal_links(
                 # File doesn't exist locally, leave link unchanged
                 continue
 
-            # Build relative path from html_file to actual_path
+            # Build relative path from html_file to actual_path using os.path.relpath
             try:
-                rel_link = actual_path.resolve().relative_to(html_file.parent.resolve())
-                tag["href"] = rel_link.as_posix()
+                # os.path.relpath can bridge across sibling directories using ../
+                rel_str = os.path.relpath(actual_path, html_file.parent)
+                tag["href"] = Path(rel_str).as_posix()
                 modified = True
             except ValueError:
-                # Can't compute relative path (different drives on Windows?)
-                # Skip this link
                 continue
 
         if modified:

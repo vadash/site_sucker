@@ -229,3 +229,78 @@ def test_repair_external_links_css_strip_external_url(tmp_path: Path, capsys):
 
     captured = capsys.readouterr()
     assert "Neutralized 1 external url() reference" in captured.out
+
+
+def test_repair_internal_links_absolute_urls(tmp_path: Path):
+    """Test internal link rewriting with absolute URLs."""
+    wiki_dir = tmp_path / "wiki"
+    wiki_dir.mkdir()
+    (wiki_dir / "Main_Page.html").write_text("<html><body>content</body></html>")
+
+    html_file = wiki_dir / "index.html"
+    html_file.write_text(
+        '<html><body><a href="https://example.com/wiki/Main_Page.html">Link</a></body></html>'
+    )
+
+    result = repair_links.repair_internal_links(tmp_path, "example.com")
+    assert result == 1
+
+    updated = html_file.read_text()
+    assert "Main_Page.html" in updated
+    assert "https://example.com" not in updated
+
+
+def test_repair_internal_links_relative_urls(tmp_path: Path):
+    """Test internal link rewriting with relative URLs."""
+    wiki_dir = tmp_path / "wiki"
+    wiki_dir.mkdir()
+    (wiki_dir / "page.html").write_text("<html><body>content</body></html>")
+
+    html_file = wiki_dir / "index.html"
+    html_file.write_text(
+        '<html><body><a href="/wiki/page.html">Link</a></body></html>'
+    )
+
+    result = repair_links.repair_internal_links(tmp_path, "example.com")
+    assert result == 1
+
+    updated = html_file.read_text()
+    assert "page.html" in updated
+    assert "/wiki/page.html" not in updated
+
+
+def test_repair_internal_links_sibling_directories(tmp_path: Path):
+    """Test internal link rewriting across sibling directories (relpath ../ navigation)."""
+    wiki_dir = tmp_path / "wiki"
+    forum_dir = tmp_path / "forum"
+    wiki_dir.mkdir()
+    forum_dir.mkdir()
+
+    (forum_dir / "index.html").write_text("<html><body>forum</body></html>")
+
+    # wiki/page.html links to forum/index.html (sibling directory)
+    html_file = wiki_dir / "page.html"
+    html_file.write_text(
+        '<html><body><a href="https://example.com/forum/index.html">Forum</a></body></html>'
+    )
+
+    result = repair_links.repair_internal_links(tmp_path, "example.com")
+    assert result == 1
+
+    updated = html_file.read_text()
+    assert "../forum/index.html" in updated
+    assert "https://example.com" not in updated
+
+
+def test_repair_internal_links_preserves_external_links(tmp_path: Path):
+    """Test that external domain links are left unchanged."""
+    html_file = tmp_path / "index.html"
+    html_file.write_text(
+        '<html><body><a href="https://other-domain.com/page.html">External</a></body></html>'
+    )
+
+    result = repair_links.repair_internal_links(tmp_path, "example.com")
+    assert result == 0
+
+    updated = html_file.read_text()
+    assert "https://other-domain.com/page.html" in updated
