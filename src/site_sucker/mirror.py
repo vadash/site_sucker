@@ -10,6 +10,7 @@ from site_sucker.media import get_external_media
 from site_sucker.repair_links import repair_external_links
 from site_sucker.repair_offline import repair_offline_html
 from site_sucker.report import write_site_report
+from site_sucker.validate_html import print_validation_results, validate_html_files
 from site_sucker.wget import build_wget_args, get_wget_path
 
 
@@ -66,6 +67,10 @@ def invoke_site_mirror(
 
     if result.returncode not in (0, 8):
         print(f"Warning: wget pass 1 exited with code {result.returncode}")
+
+    # ── VALIDATION: Check HTML integrity ────────────────────────────────────────
+    validation_results = validate_html_files(output_dir)
+    print_validation_results(validation_results)
 
     # ── PASS 2: External media with parallelism ────────────────────────────────
     ext_urls = get_external_media(output_dir, target_domain, settings)
