@@ -40,9 +40,10 @@ def invoke_site_mirror(
     output_dir = Path(output_dir)
     failed_urls = []
 
-    # Disable proxies
+    # Disable proxies for subprocess calls
+    env = os.environ.copy()
     for var in ["http_proxy", "https_proxy", "all_proxy", "HTTP_PROXY", "HTTPS_PROXY"]:
-        os.environ.pop(var, None)
+        env.pop(var, None)
 
     wget_path = get_wget_path()
 
@@ -63,6 +64,7 @@ def invoke_site_mirror(
     result = subprocess.run(
         [str(wget_path), *pass1_args, url],
         capture_output=False,
+        env=env,
     )
 
     if result.returncode not in (0, 8):
@@ -100,36 +102,35 @@ def invoke_site_mirror(
         ],
     )
 
-    # Process URLs in parallel batches
-    batch_size = settings["ParallelDownloads"]
+    # Process all URLs in parallel using a single thread pool
     url_list = list(ext_urls)
     total_urls = len(url_list)
 
-    for i in range(0, total_urls, batch_size):
-        batch = url_list[i:i + batch_size]
-        batch_num = i // batch_size + 1
-        total_batches = (total_urls + batch_size - 1) // batch_size
+    print(f"  Downloading {total_urls} external media file(s)...")
 
-        print(f"  Batch {batch_num}/{total_batches} [{i + 1}-{min(i + batch_size, total_urls)}] of {total_urls}")
+    with ThreadPoolExecutor(max_workers=settings["ParallelDownloads"]) as executor:
+        futures = {
+            executor.submit(
+                subprocess.run,
+                [str(wget_path), *pass2_args, url],
+                capture_output=True,
+                env=env,
+            ): url
+            for url in url_list
+        }
 
-        with ThreadPoolExecutor(max_workers=batch_size) as executor:
-            futures = {
-                executor.submit(
-                    subprocess.run,
-                    [str(wget_path), *pass2_args, url],
-                    capture_output=True,
-                ): url
-                for url in batch
-            }
+        completed_count = 0
+        for future in as_completed(futures):
+            url = futures[future]
+            completed_count += 1
+            print(f"  [{completed_count}/{total_urls}] {url}")
 
-            for future in as_completed(futures):
-                url = futures[future]
-                try:
-                    result = future.result()
-                    if result.returncode not in (0, 8):
-                        failed_urls.append(url)
-                except Exception:
+            try:
+                result = future.result()
+                if result.returncode not in (0, 8):
                     failed_urls.append(url)
+            except Exception:
+                failed_urls.append(url)
 
     # ── PASS 3: Rewrite external URLs to local paths ────────────────────
     repair_external_links(output_dir, media_dir, ext_urls, log_dir)

@@ -1,5 +1,6 @@
 """Settings loader for SiteSucker."""
 
+import copy
 import json
 import re
 from pathlib import Path
@@ -229,7 +230,7 @@ def load_settings(settings_path: Path | str | None = None) -> dict[str, Any]:
     Returns:
         Dictionary containing merged settings (file overrides defaults).
     """
-    settings = DEFAULT_SETTINGS.copy()
+    settings = copy.deepcopy(DEFAULT_SETTINGS)
 
     if settings_path is None:
         # Try .jsonc first, then fall back to .json
@@ -281,7 +282,7 @@ def merge_cli_overrides(settings: dict[str, Any], parallel: int | None = None,
     Returns:
         Updated settings dictionary (original is never mutated).
     """
-    result = settings.copy()
+    result = copy.deepcopy(settings)
 
     if parallel is not None and parallel > 0:
         result["ParallelDownloads"] = parallel

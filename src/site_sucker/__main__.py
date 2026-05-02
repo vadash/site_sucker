@@ -8,6 +8,20 @@ from urllib.parse import urlparse
 from site_sucker import mirror, settings
 
 
+def normalize_url(url: str) -> str:
+    """Normalize URL by adding https:// scheme if missing.
+
+    Args:
+        url: URL string to normalize.
+
+    Returns:
+        URL with https:// scheme if it was missing.
+    """
+    if not url.startswith(("http://", "https://")):
+        return f"https://{url}"
+    return url
+
+
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments.
 
@@ -89,9 +103,6 @@ def interactive_prompt(default_url: str = "", default_output: str = "",
         if not url_input:
             print("Error: URL is required.")
             raise SystemExit(1)
-
-        if not url_input.startswith(("http://", "https://")):
-            url_input = f"https://{url_input}"
         url = url_input
     else:
         url = default_url
@@ -142,10 +153,6 @@ def main() -> None:
 
         cfg = settings.merge_cli_overrides(cfg, parallel, depth)
     else:
-        # Ensure URL has protocol
-        if not url.startswith(("http://", "https://")):
-            url = f"https://{url}"
-
         try:
             parsed = urlparse(url)
             target_domain = parsed.hostname or ""
@@ -158,6 +165,9 @@ def main() -> None:
             output_dir = args.output_dir
         else:
             output_dir = Path(cfg["OutputRoot"]) / target_domain
+
+    # Normalize URL scheme
+    url = normalize_url(url)
 
     # Final URL parsing
     try:

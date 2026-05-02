@@ -64,7 +64,7 @@ def repair_external_links(
 
     for html_file in html_files:
         html_dir = html_file.parent
-        rel_path = Path(html_dir).relative_to(output_dir)
+        rel_path = html_dir.resolve().relative_to(output_dir.resolve())
         depth = len(rel_path.parts) if str(rel_path) != "." else 0
 
         # Build replacement steps for this specific file
@@ -127,7 +127,7 @@ def repair_external_links(
     # Always process CSS files for absolute path conversion
     for css_file in css_files:
         css_dir = css_file.parent
-        rel_from_root = Path(css_dir).relative_to(output_dir)
+        rel_from_root = css_dir.resolve().relative_to(output_dir.resolve())
         depth = len(rel_from_root.parts) if str(rel_from_root) != "." else 0
         prefix = "../" * depth
 

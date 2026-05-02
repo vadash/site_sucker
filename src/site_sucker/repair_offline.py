@@ -54,8 +54,7 @@ def repair_offline_html(output_dir: Path | str, log_dir: Path | None = None) -> 
         ReplacementStep(
             name="Remove MediaWiki load.php scripts",
             pattern=re.compile(
-                r'<script[^>]*src="https?://[^"]*load\.php[^"]*"[^>]*>.*?</script>',
-                flags=re.DOTALL,
+                r'<script[^>]*src="https?://[^"]*load\.php[^"]*"[^>]*>(?:(?!</script>)[\s\S])*?</script>',
             ),
             replacement='',
         ),
@@ -84,8 +83,7 @@ def repair_offline_html(output_dir: Path | str, log_dir: Path | None = None) -> 
         ReplacementStep(
             name="Remove Matomo analytics scripts",
             pattern=re.compile(
-                r'<script[^>]*>\s*var\s+_paq\s*=\s*window\._paq.*?</script>',
-                flags=re.DOTALL,
+                r'<script[^>]*>\s*var\s+_paq\s*=\s*window\._paq(?:(?!</script>)[\s\S])*?</script>',
             ),
             replacement='',
         ),
@@ -128,8 +126,7 @@ def repair_offline_html(output_dir: Path | str, log_dir: Path | None = None) -> 
         ReplacementStep(
             name="Remove FontAwesome CDN loader script",
             pattern=re.compile(
-                r'<script[^>]*src=["\'].*?9a832b96e0\.js["\'][^>]*>.*?</script>',
-                flags=re.DOTALL,
+                r'<script[^>]*src=["\'].*?9a832b96e0\.js["\'][^>]*>(?:(?!</script>)[\s\S])*?</script>',
             ),
             replacement='',
         ),
@@ -160,40 +157,35 @@ def repair_offline_html(output_dir: Path | str, log_dir: Path | None = None) -> 
         ReplacementStep(
             name="Remove phpBB posting.php links",
             pattern=re.compile(
-                r'<a\s+[^>]*href="posting\.php[^"]*"[^>]*>.*?</a>',
-                flags=re.DOTALL,
+                r'<a\s+[^>]*href="posting\.php[^"]*"[^>]*>(?:(?!</a>)[\s\S])*?</a>',
             ),
             replacement='',
         ),
         ReplacementStep(
             name="Remove phpBB tradegold.php links",
             pattern=re.compile(
-                r'<a\s+[^>]*href="tradegold\.php[^"]*"[^>]*>.*?</a>',
-                flags=re.DOTALL,
+                r'<a\s+[^>]*href="tradegold\.php[^"]*"[^>]*>(?:(?!</a>)[\s\S])*?</a>',
             ),
             replacement='',
         ),
         ReplacementStep(
             name="Remove phpBB memberlist.php links",
             pattern=re.compile(
-                r'<a\s+[^>]*href="memberlist\.php[^"]*"[^>]*>.*?</a>',
-                flags=re.DOTALL,
+                r'<a\s+[^>]*href="memberlist\.php[^"]*"[^>]*>(?:(?!</a>)[\s\S])*?</a>',
             ),
             replacement='',
         ),
         ReplacementStep(
             name="Remove phpBB search.php links",
             pattern=re.compile(
-                r'<a\s+[^>]*href="search\.php[^"]*"[^>]*>.*?</a>',
-                flags=re.DOTALL,
+                r'<a\s+[^>]*href="search\.php[^"]*"[^>]*>(?:(?!</a>)[\s\S])*?</a>',
             ),
             replacement='',
         ),
         ReplacementStep(
             name="Remove phpBB ucp/mcp.php links",
             pattern=re.compile(
-                r'<a\s+[^>]*href="(ucp|mcp)\.php[^"]*"[^>]*>.*?</a>',
-                flags=re.DOTALL,
+                r'<a\s+[^>]*href="(ucp|mcp)\.php[^"]*"[^>]*>(?:(?!</a>)[\s\S])*?</a>',
             ),
             replacement='',
         ),
