@@ -27,10 +27,7 @@ git clone <repo-url>
 cd site_sucker
 
 # Install in development mode
-uv sync
-
-# The CLI is now available
-uv run site-sucker
+uv pip install -e .
 ```
 
 ### Using pip
@@ -42,41 +39,66 @@ cd site_sucker
 
 # Install in development mode
 pip install -e .
-
-# The CLI is now available
-site-sucker
 ```
 
 ## Usage
 
-### Interactive Mode
+After installation, run the tool using one of these methods:
+
+### Method 1: Python Module (Recommended)
 
 ```bash
-uv run site-sucker
-# or
-site-sucker
+# Show help
+.venv\Scripts\python.exe -m site_sucker --help
+
+# Interactive mode
+.venv\Scripts\python.exe -m site_sucker
+
+# Direct mode with URL
+.venv\Scripts\python.exe -m site_sucker https://wiki.example.com/wiki/Main_Page
+
+# With options
+.venv\Scripts\python.exe -m site_sucker https://example.com --parallel 8 --depth 2
 ```
 
-You'll be prompted for:
+### Method 2: Installed Script
+
+```bash
+# Show help
+.venv\Scripts\site-sucker.exe --help
+
+# Interactive mode
+.venv\Scripts\site-sucker.exe
+
+# Direct mode with URL
+.venv\Scripts\site-sucker.exe https://wiki.example.com/wiki/Main_Page
+
+# With options
+.venv\Scripts\site-sucker.exe https://example.com -o ./my_mirrors/example --parallel 8
+```
+
+### Interactive Mode
+
+When you run without arguments, you'll be prompted for:
 - Site URL to mirror
 - Output folder (default: `./downloads/<domain>`)
 - Max depth (default: 0 = unlimited)
 - Parallel downloads (default: 4)
 
-### Direct Mode
+### Direct Mode Examples
 
 ```bash
 # Basic usage
-site-sucker https://wiki.example.com/wiki/Main_Page
+.venv\Scripts\python.exe -m site_sucker https://wiki.example.com/wiki/Main_Page
 
 # Custom output directory
-site-sucker https://example.com -o ./my_mirrors/example
+.venv\Scripts\python.exe -m site_sucker https://example.com -o ./my_mirrors/example
 
 # Custom parallelism and depth
-site-sucker https://example.com --parallel 8 --depth 2
+.venv\Scripts\python.exe -m site_sucker https://example.com --parallel 8 --depth 2
 
 # Custom settings file
-site-sucker https://example.com --settings ./my_settings.json
+.venv\Scripts\python.exe -m site_sucker https://example.com --settings ./my_settings.json
 ```
 
 ## Configuration
@@ -187,15 +209,16 @@ site_sucker/
 ### Running Tests
 
 ```bash
-# Using uv
-uv run pytest
+# Using the test scripts (recommended)
+.\run_tests.bat
+# or
+.\run_tests.ps1
+
+# Or directly with pytest
+.venv\Scripts\python.exe -m pytest
 
 # With coverage
-uv run pytest --cov=site_sucker
-
-# Using pip
-pytest
-pytest --cov=site_sucker
+.venv\Scripts\python.exe -m pytest --cov=site_sucker
 ```
 
 ### Building
