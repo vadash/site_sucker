@@ -109,6 +109,9 @@ When you run without arguments, you'll be prompted for:
 
 # Use multiple --reject flags (they are combined)
 .venv\Scripts\python.exe -m site_sucker https://forum.example.com --reject "action=" --reject "f={1..10}&"
+
+# Resume an interrupted download (bypasses 429 bot protection)
+.venv\Scripts\python.exe -m site_sucker https://example.com --resume --output-dir ./downloads/example
 ```
 
 ## Configuration
@@ -161,6 +164,8 @@ The `settings.json` file controls download behavior:
 
 SiteSucker uses a 4-pass process:
 
+### Normal Mode (default)
+
 ```
 Pass 1: Full site mirror (wget --mirror)
   - Downloads all pages within target domain
@@ -184,6 +189,43 @@ Pass 4: Offline optimization
   - Injects fallback CSS for readability
 ```
 
+### Resume Mode (--resume flag)
+
+When resuming an interrupted download, use the `--resume` flag:
+
+```bash
+.venv\Scripts\python.exe -m site_sucker https://example.com --resume --output-dir ./downloads/example
+```
+
+**Why use resume mode?**
+
+When downloading large sites, you may encounter 429 (Too Many Requests) bot protection. Wget's normal resume behavior (`-nc`) has a Catch-22:
+- With `-nc`: wget skips existing files but can't discover links inside them → crawl stops
+- Without `-nc`: wget re-checks every file against the server → triggers 429 delays
+
+**How resume mode solves this:**
+
+Resume mode replaces wget's built-in spidering with a Python-based BFS crawler:
+
+```
+Pass 1: Python BFS crawler
+  - Scans existing local HTML files for links (no server hits)
+  - Downloads only genuinely missing pages (wget --level=1)
+  - Respects WaitBetweenRequests to avoid 429s
+  - Tracks visited URLs to prevent infinite loops
+  - Enforces MaxDepth settings
+
+Pass 2: External media download (same as normal mode)
+Pass 3: Internal link rewriting (Python converts https:// → relative paths)
+Pass 4: Offline optimization (same as normal mode)
+```
+
+**Benefits:**
+- Only hits the server for pages you don't have yet
+- Existing files are parsed locally at full speed
+- Bypasses 429 bot protection completely
+- Can resume even after weeks of interruption
+
 ## Project Structure
 
 ```
@@ -200,6 +242,7 @@ site_sucker/
 │       ├── media.py          # External media scanner
 │       ├── repair_links.py   # URL rewriter
 │       ├── repair_offline.py # Offline optimizer
+│       ├── resume.py         # Python BFS crawler (resume mode)
 │       └── report.py         # Report generator
 ├── tests/
 │   ├── conftest.py           # Test fixtures

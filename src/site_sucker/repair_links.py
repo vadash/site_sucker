@@ -1,4 +1,4 @@
-"""External URL rewriter for downloaded HTML and CSS files."""
+"""External and internal URL rewriter for downloaded HTML and CSS files."""
 
 import re
 from pathlib import Path
@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
 from site_sucker.replacement_pipeline import ReplacementStep, run_replacement_pipeline
+from site_sucker.resume import resolve_local_file, url_to_filepath
 
 
 def _repair_html_links(
@@ -279,4 +280,97 @@ def repair_external_links(
         if external_urls_stripped > 0:
             print(f"    - Neutralized {external_urls_stripped} external url() reference(s)")
 
+    return modified_count
+
+
+def repair_internal_links(
+    output_dir: Path | str,
+    target_domain: str,
+) -> int:
+    """Rewrite internal HTML-to-HTML links to point to local files (for resume mode).
+
+    When using resume mode, wget doesn't run with --convert-links, so internal
+    links still point to https:// URLs. This function rewrites them to relative
+    local paths using BeautifulSoup.
+
+    Args:
+        output_dir: Path to the directory containing downloaded files.
+        target_domain: The primary domain being mirrored (used to identify internal links).
+
+    Returns:
+        Number of HTML files modified.
+    """
+    output_dir = Path(output_dir)
+    print(f"\n[*] Rewriting internal links to local files...")
+
+    # Find all HTML files
+    html_files = list(output_dir.rglob("*.html")) + list(output_dir.rglob("*.htm"))
+    modified_count = 0
+
+    for html_file in html_files:
+        try:
+            with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+        except (IOError, OSError):
+            continue
+
+        if not content:
+            continue
+
+        # Parse with BeautifulSoup
+        soup = BeautifulSoup(content, 'lxml')
+
+        # Calculate relative path depth from this file to output root
+        html_dir = html_file.parent
+        try:
+            rel_path = html_dir.resolve().relative_to(output_dir.resolve())
+            depth = len(rel_path.parts) if str(rel_path) != "." else 0
+        except ValueError:
+            # html_dir is not relative to output_dir (shouldn't happen)
+            depth = 0
+
+        modified = False
+
+        # Rewrite all href attributes pointing to target_domain
+        for tag in soup.find_all("a", href=True):
+            href = tag["href"]
+
+            # Skip non-HTTP links
+            if not href.startswith(("http://", "https://")):
+                continue
+
+            # Parse URL to check hostname
+            try:
+                parsed = urlparse(href)
+                if parsed.hostname != target_domain:
+                    continue
+            except Exception:
+                continue
+
+            # Map URL to expected local file path
+            expected_path = url_to_filepath(href, output_dir)
+
+            # Resolve actual file (may have .html suffix)
+            actual_path = resolve_local_file(expected_path)
+
+            if not actual_path:
+                # File doesn't exist locally, leave link unchanged
+                continue
+
+            # Build relative path from html_file to actual_path
+            try:
+                rel_link = actual_path.resolve().relative_to(html_file.parent.resolve())
+                tag["href"] = rel_link.as_posix()
+                modified = True
+            except ValueError:
+                # Can't compute relative path (different drives on Windows?)
+                # Skip this link
+                continue
+
+        if modified:
+            with open(html_file, "w", encoding="utf-8", newline="") as f:
+                f.write(str(soup))
+            modified_count += 1
+
+    print(f"  Rewrote internal links in {modified_count} HTML file(s)")
     return modified_count

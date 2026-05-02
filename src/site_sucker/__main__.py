@@ -79,6 +79,14 @@ Examples:
              "Example: --reject 'f={1..100%%4,25,40}&' rejects forum IDs 1-100 except 4,25,40",
     )
 
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume an interrupted download from existing output directory. "
+             "Uses Python BFS crawler instead of wget --mirror to bypass 429 bot protection. "
+             "Requires --output-dir pointing to existing download.",
+    )
+
     return parser.parse_args()
 
 
@@ -194,6 +202,7 @@ def main() -> None:
             output_dir=output_path,
             target_domain=target_domain,
             settings=cfg,
+            resume=args.resume,
         )
 
         # Write report

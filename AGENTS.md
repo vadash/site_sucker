@@ -6,10 +6,18 @@ This document provides guidance for AI agents (including Factory Droids) working
 
 SiteSucker is a modular Python application that mirrors websites for offline use. It uses a 4-pass pipeline:
 
-1. **Pass 1**: Wget-based full site mirror
+1. **Pass 1**: Wget-based full site mirror (or Python BFS crawler in `--resume` mode)
 2. **Pass 2**: Parallel external media download
 3. **Pass 3**: External URL → local path rewriting
 4. **Pass 4**: Online-only resource stripping
+
+### Resume Mode (--resume flag)
+
+When resuming an interrupted download, SiteSucker can use a Python-based BFS crawler instead of wget's built-in spidering:
+
+- **Why**: Wget's `-nc` (no-clobber) + `--convert-links` are incompatible. With `-nc`, wget skips existing files but can't discover links inside them, so the crawl stops. Without `-nc`, wget re-checks every file against the server, triggering 429 bot protection.
+- **How**: Python manages the entire crawl state (visited set, depth tracking, link discovery) and uses wget only as a single-file downloader (`--level=1`).
+- **Benefits**: Bypasses 429 bot protection by only hitting the server for genuinely missing pages. Existing files are parsed locally for links at full speed.
 
 ## Key Modules
 
@@ -42,6 +50,7 @@ SiteSucker is a modular Python application that mirrors websites for offline use
 
 - **`repair_links.py`**: URL rewriter (BeautifulSoup for HTML, pipeline for CSS)
   - `repair_external_links()`: Rewrites external URLs to local paths
+  - `repair_internal_links()`: Rewrites internal HTML-to-HTML links to local paths (for resume mode)
   - HTML files: Uses BeautifulSoup for safe DOM manipulation (URL rewriting + CORS attribute stripping)
   - CSS files: Uses regex pipeline for @import inlining, absolute path conversion, and external URL stripping
   - Each CSS replacement step validated automatically
@@ -69,6 +78,18 @@ SiteSucker is a modular Python application that mirrors websites for offline use
   - `validate_html_string()`: Validates single HTML content string using BeautifulSoup
   - Checks for missing `<head>`, `<body>` elements and empty bodies
   - Runs after wget pass 1, before post-processing
+
+### Resume Mode
+
+- **`resume.py`**: Python-based BFS crawler (bypasses 429 bot protection)
+  - `crawl_loop()`: Main BFS crawl loop that replaces wget's built-in spidering
+  - `url_to_filepath()`: Converts URLs to expected local file paths (mimics wget's `--restrict-file-names=windows`)
+  - `file_exists_on_disk()`: Checks if file exists (with or without `.html` suffix for wget's `--adjust-extension` behavior)
+  - `resolve_local_file()`: Returns actual file path that exists on disk
+  - `discover_links()`: Extracts internal links from HTML using BeautifulSoup, applies reject patterns
+  - **Key feature**: Wget becomes a single-file downloader (`--level=1`), Python manages all crawl state
+  - **Solves**: The Catch-22 of `-nc` + `--convert-links` incompatibility for resume
+  - **Bypasses**: 429 bot protection by only hitting the server for genuinely missing pages
 
 ### CLI
 
