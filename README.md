@@ -224,41 +224,10 @@ site_sucker/
 .venv\Scripts\python.exe -m pytest --cov=site_sucker
 ```
 
-### Building
+## Examples
+
+### forum.median-xl.com
 
 ```bash
-# Using uv
-uv build
-
-# Using pip
-pip install build
-python -m build
-```
-
-## Migration from PowerShell
-
-This Python implementation maintains feature parity with the original PowerShell version:
-
-| PowerShell | Python |
-|------------|--------|
-| `site_sucker.ps1` | `src/site_sucker/__main__.py` |
-| `SiteSucker.psm1` | `src/site_sucker/__init__.py` |
-| `Get-WgetPath.ps1` | `src/site_sucker/wget.py::get_wget_path()` |
-| `New-WgetArgs.ps1` | `src/site_sucker/wget.py::build_wget_args()` |
-| `Invoke-SiteMirror.ps1` | `src/site_sucker/mirror.py::invoke_site_mirror()` |
-| `Get-ExternalMedia.ps1` | `src/site_sucker/media.py::get_external_media()` |
-| `Repair-ExternalLinks.ps1` | `src/site_sucker/repair_links.py::repair_external_links()` |
-| `Repair-OfflineHtml.ps1` | `src/site_sucker/repair_offline.py::repair_offline_html()` |
-| `Write-SiteReport.ps1` | `src/site_sucker/report.py::write_site_report()` |
-
-## License
-
-Same as the original PowerShell implementation.
-
-## Contributing
-
-Contributions are welcome! Please ensure tests pass before submitting PRs.
-
-```bash
-uv run pytest
+.venv\Scripts\site-sucker.exe -d 3 --reject "f=1&;f=2&;f=3&;f=5&;f=6&;f=7&;f=8&;f=9&;f=10&;f=11&;f=12&;f=13&;f=14&;f=15&;f=16&;f=17&;f=18&;f=19&;f=20&;f=21&;f=22&;f=23&;f=24&;f=26&;f=27&;f=28&;f=29&;f=30&;f=31&;f=32&;f=33&;f=34&;f=35&;f=36&;f=37&;f=38&;f=39&;f=41&;f=42&;f=43&;f=44&;f=45&;f=46&;f=47&;f=48&;f=49&;f=50&;f=51&;f=52&;f=53&;f=54&;f=55&;f=56&;f=57&;f=58&;f=59&;f=60&;f=61&;f=62&;f=63&;f=64&;f=65&;f=66&;f=67&;f=68&;f=69&;f=70&;f=71&;f=72&;f=73&;f=74&;f=75&;f=76&;f=77&;f=78&;f=79&;f=80&;f=81&;f=82&;f=83&;f=84&;f=85&;f=86&;f=87&;f=88&;f=89&;f=90&;f=91&;f=92&;f=93&;f=94&;f=95&;f=96&;f=97&;f=98&;f=99&;f=100&" https://forum.median-xl.com
 ```
