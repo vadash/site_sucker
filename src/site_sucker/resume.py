@@ -107,7 +107,10 @@ def discover_links(
     reject_patterns: list[str] | None = None,
     reject_domains: list[str] | None = None,
 ) -> set[str]:
-    """Extract all internal links from an HTML file using BeautifulSoup.
+    """Extract all internal links and page requisites from an HTML file.
+
+    Replicates wget's --page-requisites behavior by extracting both navigation
+    links (<a> tags) and embedded resources (img, script, link, video, audio, source).
 
     Args:
         html_file: Path to HTML file to parse.
@@ -132,49 +135,45 @@ def discover_links(
 
     soup = BeautifulSoup(content, "lxml")
 
-    # Extract all href attributes from <a> tags
-    for tag in soup.find_all("a", href=True):
-        href = tag["href"]
+    def _add_url(url_attr: str):
+        """Add a URL to the links set after validation and filtering."""
+        # Skip anchors, JS, mailto, and inline base64 data
+        if url_attr.startswith(("#", "javascript:", "mailto:", "data:")):
+            return
 
-        # Skip anchors, javascript, and mailto links
-        if href.startswith(("#", "javascript:", "mailto:")):
-            continue
+        absolute_url = urljoin(base_url, url_attr)
 
-        # Convert relative links to absolute using base_url
-        absolute_url = urljoin(base_url, href)
-
-        # Parse URL
         try:
             parsed = urlparse(absolute_url)
         except Exception:
-            continue
+            return
 
-        # Skip non-HTTP links
         if parsed.scheme not in ("http", "https"):
-            continue
-
-        # Check if belongs to target domain
+            return
         if parsed.hostname != target_domain:
-            continue
+            return
 
-        # Apply reject patterns (substring match)
         if reject_patterns:
-            rejected = False
-            for pattern in reject_patterns:
-                if pattern in absolute_url:
-                    rejected = True
-                    break
-            if rejected:
-                continue
+            if any(pattern in absolute_url for pattern in reject_patterns):
+                return
 
-        # Apply reject domains (hostname match)
         if reject_domains:
             if any(parsed.hostname == domain for domain in reject_domains if parsed.hostname):
-                continue
+                return
 
-        # Normalize URL: strip fragment to avoid duplicates
         normalized = absolute_url.split("#")[0]
         links.add(normalized)
+
+    # 1. Grab normal HTML navigation links
+    for tag in soup.find_all("a", href=True):
+        _add_url(tag["href"])
+
+    # 2. Grab internal page requisites (images, css, js, video, audio)
+    for tag in soup.find_all(["img", "script", "link", "video", "audio", "source"]):
+        for attr in ("src", "href", "data-src"):
+            val = tag.get(attr)
+            if val:
+                _add_url(val)
 
     return links
 
@@ -283,19 +282,22 @@ def crawl_loop(
             print(f"    Error: File not found after download attempt: {expected_path}")
             continue
 
-        # Parse HTML for links (regardless of whether we just downloaded or used cache)
-        new_links = discover_links(
-            actual_path,
-            current_url,
-            target_domain,
-            reject_patterns,
-            reject_domains,
-        )
+        # ONLY parse HTML files for more links
+        # (Skips parsing .png, .js, .css files to save CPU)
+        if actual_path.suffix.lower() in [".html", ".htm", ""]:
+            # Parse HTML for links (regardless of whether we just downloaded or used cache)
+            new_links = discover_links(
+                actual_path,
+                current_url,
+                target_domain,
+                reject_patterns,
+                reject_domains,
+            )
 
-        # Enqueue newly discovered links at depth+1
-        for link in new_links:
-            if link not in visited:
-                queue.append((link, depth + 1))
+            # Enqueue newly discovered links at depth+1
+            for link in new_links:
+                if link not in visited:
+                    queue.append((link, depth + 1))
 
     print(f"\n[*] BFS crawl complete:")
     print(f"    Visited {len(visited)} URLs")

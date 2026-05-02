@@ -272,3 +272,180 @@ def test_discover_links_fragment_normalization(tmp_path):
     # Should have only one link (fragments stripped)
     assert len(links) == 1
     assert "https://example.com/page.html" in links
+
+
+def test_discover_links_page_requisites_images(tmp_path):
+    """Test that <img> src URLs are discovered as page requisites."""
+    html = """<html>
+        <body>
+            <img src="/images/sword.png" alt="Sword">
+            <img src="https://example.com/images/shield.jpg" alt="Shield">
+            <img src="https://other.com/image.png" alt="External">
+        </body>
+    </html>"""
+
+    html_file = tmp_path / "test.html"
+    html_file.write_text(html)
+
+    links = discover_links(
+        html_file,
+        base_url="https://example.com/wiki/page.html",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    assert "https://example.com/images/sword.png" in links
+    assert "https://example.com/images/shield.jpg" in links
+    assert "https://other.com/image.png" not in links
+
+
+def test_discover_links_page_requisites_scripts(tmp_path):
+    """Test that <script> src URLs are discovered as page requisites."""
+    html = """<html>
+        <head>
+            <script src="/js/app.js"></script>
+            <script src="https://example.com/js/vendor.js"></script>
+            <script src="https://cdn.other.com/lib.js"></script>
+        </head>
+    </html>"""
+
+    html_file = tmp_path / "test.html"
+    html_file.write_text(html)
+
+    links = discover_links(
+        html_file,
+        base_url="https://example.com/page.html",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    assert "https://example.com/js/app.js" in links
+    assert "https://example.com/js/vendor.js" in links
+    assert "https://cdn.other.com/lib.js" not in links
+
+
+def test_discover_links_page_requisites_stylesheet(tmp_path):
+    """Test that <link> href URLs are discovered as page requisites."""
+    html = """<html>
+        <head>
+            <link rel="stylesheet" href="/css/style.css">
+            <link rel="stylesheet" href="https://example.com/css/theme.css">
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+        </head>
+    </html>"""
+
+    html_file = tmp_path / "test.html"
+    html_file.write_text(html)
+
+    links = discover_links(
+        html_file,
+        base_url="https://example.com/page.html",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    assert "https://example.com/css/style.css" in links
+    assert "https://example.com/css/theme.css" in links
+    # External preconnect link should not be included (different domain)
+    assert "https://fonts.googleapis.com" not in links
+
+
+def test_discover_links_page_requisites_video_audio_source(tmp_path):
+    """Test that <video>, <audio>, <source> URLs are discovered."""
+    html = """<html>
+        <body>
+            <video src="/videos/intro.mp4"></video>
+            <audio src="/audio/podcast.mp3"></audio>
+            <video>
+                <source src="/videos/trailer.webm" type="video/webm">
+            </video>
+        </body>
+    </html>"""
+
+    html_file = tmp_path / "test.html"
+    html_file.write_text(html)
+
+    links = discover_links(
+        html_file,
+        base_url="https://example.com/page.html",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    assert "https://example.com/videos/intro.mp4" in links
+    assert "https://example.com/audio/podcast.mp3" in links
+    assert "https://example.com/videos/trailer.webm" in links
+
+
+def test_discover_links_skips_data_urls(tmp_path):
+    """Test that data: URLs are not added to the crawl queue."""
+    html = """<html>
+        <body>
+            <img src="data:image/png;base64,iVBOR...">
+            <img src="/images/real.png" alt="Real">
+        </body>
+    </html>"""
+
+    html_file = tmp_path / "test.html"
+    html_file.write_text(html)
+
+    links = discover_links(
+        html_file,
+        base_url="https://example.com/page.html",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    assert len(links) == 1
+    assert "https://example.com/images/real.png" in links
+
+
+def test_discover_links_data_src_attribute(tmp_path):
+    """Test that data-src attributes (lazy-loaded images) are discovered."""
+    html = """<html>
+        <body>
+            <img data-src="/images/lazy.png" alt="Lazy loaded">
+            <img data-src="https://example.com/images/lazy2.jpg" alt="Another lazy">
+        </body>
+    </html>"""
+
+    html_file = tmp_path / "test.html"
+    html_file.write_text(html)
+
+    links = discover_links(
+        html_file,
+        base_url="https://example.com/page.html",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    assert "https://example.com/images/lazy.png" in links
+    assert "https://example.com/images/lazy2.jpg" in links
+
+
+def test_discover_links_sample_html_includes_page_requisites(tmp_path, sample_html):
+    """Test that sample_html fixture's page requisites are now discovered."""
+    html_file = tmp_path / "test.html"
+    html_file.write_text(sample_html)
+
+    links = discover_links(
+        html_file,
+        base_url="https://example.com/test.html",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    # Navigation link still works
+    assert "https://example.com/page.html" in links
+    # Page requisites on same domain are now discovered
+    assert "https://example.com/local/image.jpg" in links
+    # External resources are filtered out (different domain)
+    assert "https://cdn.example.com/style.css" not in links
+    assert "https://cdn.example.com/script.js" not in links
