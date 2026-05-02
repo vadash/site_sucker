@@ -60,7 +60,9 @@ Examples:
         "-r", "--reject",
         dest="extra_reject",
         action="append",
-        help="Additional URL patterns to reject (use ; for multiple patterns in one flag)",
+        help="Additional URL patterns to reject. Use ; for multiple patterns. "
+             "Supports range expressions: {1..100}, {1..100..2}, {1..100%4,25,40}. "
+             "Example: --reject 'f={1..100%4,25,40}&' rejects forum IDs 1-100 except 4,25,40",
     )
 
     return parser.parse_args()

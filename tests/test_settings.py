@@ -8,6 +8,112 @@ import pytest
 from site_sucker import settings
 
 
+# Range Expression Tests
+
+def test_expand_reject_expression_no_expression():
+    """Test that patterns without expressions are returned as-is."""
+    result = settings._expand_reject_expression("action=")
+    assert result == ["action="]
+
+
+def test_expand_reject_expression_basic_range():
+    """Test basic range expansion {1..5}."""
+    result = settings._expand_reject_expression("f={1..5}&")
+    assert result == ["f=1&", "f=2&", "f=3&", "f=4&", "f=5&"]
+
+
+def test_expand_reject_expression_range_with_step():
+    """Test range expansion with step {1..10..2}."""
+    result = settings._expand_reject_expression("f={1..10..2}&")
+    assert result == ["f=1&", "f=3&", "f=5&", "f=7&", "f=9&"]
+
+
+def test_expand_reject_expression_range_with_exclusions():
+    """Test range expansion with exclusions {1..10%3,7}."""
+    result = settings._expand_reject_expression("f={1..10%3,7}&")
+    # Should exclude 3 and 7
+    assert result == ["f=1&", "f=2&", "f=4&", "f=5&", "f=6&", "f=8&", "f=9&", "f=10&"]
+
+
+def test_expand_reject_expression_forum_example():
+    """Test the real-world forum.median-xl.com example."""
+    result = settings._expand_reject_expression("f={1..100%4,25,40}&")
+    # Should generate 97 patterns (100 total minus 4, 25, 40)
+    assert len(result) == 97
+    # Check some specific values
+    assert "f=1&" in result
+    assert "f=3&" in result
+    assert "f=4&" not in result
+    assert "f=5&" in result
+    assert "f=24&" in result
+    assert "f=25&" not in result
+    assert "f=26&" in result
+    assert "f=39&" in result
+    assert "f=40&" not in result
+    assert "f=41&" in result
+    assert "f=100&" in result
+
+
+def test_expand_reject_expression_single_value():
+    """Test expression that expands to single value."""
+    result = settings._expand_reject_expression("f={5..5}&")
+    assert result == ["f=5&"]
+
+
+def test_expand_reject_expression_negative_step():
+    """Test range with negative step."""
+    result = settings._expand_reject_expression("f={10..1..-1}&")
+    assert result == ["f=10&", "f=9&", "f=8&", "f=7&", "f=6&", "f=5&", "f=4&", "f=3&", "f=2&", "f=1&"]
+
+
+def test_expand_reject_expression_multiple_exclusions():
+    """Test range with multiple exclusions."""
+    result = settings._expand_reject_expression("id={1..20%2,3,5,7,11,13,17,19}&")
+    # Should only include prime numbers from 1..20 (excluding the primes listed as exclusions)
+    # Wait, this is excluding primes, so it should include non-primes
+    expected = ["id=1&", "id=4&", "id=6&", "id=8&", "id=9&", "id=10&", "id=12&", "id=14&", "id=15&", "id=16&", "id=18&", "id=20&"]
+    assert result == expected
+
+
+def test_expand_reject_expression_invalid_syntax():
+    """Test that invalid expressions are returned as-is."""
+    result = settings._expand_reject_expression("f={invalid}&")
+    # Invalid expressions should be returned as-is
+    assert result == ["f={invalid}&"]
+
+
+def test_expand_reject_expression_empty_range():
+    """Test expression with empty result after exclusions."""
+    result = settings._expand_reject_expression("f={5..5%5}&")
+    # Should return the original expression since expansion is empty
+    assert result == ["f={5..5%5}&"]
+
+
+def test_merge_cli_overrides_with_expressions():
+    """Test that expressions are expanded during CLI override merge."""
+    base = {"RejectPatterns": ["pattern1"]}
+    result = settings.merge_cli_overrides(base, extra_reject=["f={1..5%3}&"])
+
+    # Should have pattern1 plus expanded f=1&, f=2&, f=4&, f=5& (excluding 3)
+    assert "pattern1" in result["RejectPatterns"]
+    assert "f=1&" in result["RejectPatterns"]
+    assert "f=2&" in result["RejectPatterns"]
+    assert "f=3&" not in result["RejectPatterns"]
+    assert "f=4&" in result["RejectPatterns"]
+    assert "f=5&" in result["RejectPatterns"]
+
+
+def test_merge_cli_overrides_mixed_literals_and_expressions():
+    """Test mixing literal patterns and expressions."""
+    base = {"RejectPatterns": []}
+    result = settings.merge_cli_overrides(base, extra_reject=["action=", "f={1..3}&"])
+
+    assert "action=" in result["RejectPatterns"]
+    assert "f=1&" in result["RejectPatterns"]
+    assert "f=2&" in result["RejectPatterns"]
+    assert "f=3&" in result["RejectPatterns"]
+
+
 def test_load_settings_default(tmp_path: Path, monkeypatch):
     """Test loading default settings when no file exists."""
     # Change to temp directory where no settings file exists

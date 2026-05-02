@@ -102,6 +102,13 @@ When you run without arguments, you'll be prompted for:
 
 # Block specific URL patterns (e.g., phpBB forum categories)
 .venv\Scripts\python.exe -m site_sucker https://forum.example.com --reject "f=31&;f=8&;f=11&"
+
+# Use range expressions to block multiple patterns at once
+# Reject forum IDs 1-100 except 4, 25, 40
+.venv\Scripts\python.exe -m site_sucker https://forum.example.com --reject "f={1..100%4,25,40}&"
+
+# Use multiple --reject flags (they are combined)
+.venv\Scripts\python.exe -m site_sucker https://forum.example.com --reject "action=" --reject "f={1..10}&"
 ```
 
 ## Configuration
@@ -228,6 +235,39 @@ site_sucker/
 
 ### forum.median-xl.com
 
+**Old way (typing 97 patterns manually):**
 ```bash
-.venv\Scripts\site-sucker.exe -d 3 --reject "f=1&;f=2&;f=3&;f=5&;f=6&;f=7&;f=8&;f=9&;f=10&;f=11&;f=12&;f=13&;f=14&;f=15&;f=16&;f=17&;f=18&;f=19&;f=20&;f=21&;f=22&;f=23&;f=24&;f=26&;f=27&;f=28&;f=29&;f=30&;f=31&;f=32&;f=33&;f=34&;f=35&;f=36&;f=37&;f=38&;f=39&;f=41&;f=42&;f=43&;f=44&;f=45&;f=46&;f=47&;f=48&;f=49&;f=50&;f=51&;f=52&;f=53&;f=54&;f=55&;f=56&;f=57&;f=58&;f=59&;f=60&;f=61&;f=62&;f=63&;f=64&;f=65&;f=66&;f=67&;f=68&;f=69&;f=70&;f=71&;f=72&;f=73&;f=74&;f=75&;f=76&;f=77&;f=78&;f=79&;f=80&;f=81&;f=82&;f=83&;f=84&;f=85&;f=86&;f=87&;f=88&;f=89&;f=90&;f=91&;f=92&;f=93&;f=94&;f=95&;f=96&;f=97&;f=98&;f=99&;f=100&" https://forum.median-xl.com
+.venv\Scripts\site-sucker.exe -d 3 --reject "f=1&;f=2&;f=3&;f=5&;f=6&;f=7&;f=8&;f=9&;f=10&;..." https://forum.median-xl.com
+```
+
+**New way (using range expression):**
+```bash
+.venv\Scripts\site-sucker.exe -d 3 --reject "f={1..100%4,25,40}&" https://forum.median-xl.com
+```
+
+This rejects forum IDs 1-100, excluding IDs 4, 25, and 40.
+
+### Range Expression Syntax
+
+The `--reject` flag supports powerful range expressions:
+
+| Syntax | Meaning | Example |
+|--------|---------|---------|
+| `{START..END}` | Numeric range (inclusive) | `{1..10}` → 1, 2, ..., 10 |
+| `{START..END..STEP}` | Range with step | `{1..10..2}` → 1, 3, 5, 7, 9 |
+| `{START..END%EXCLUDE}` | Range excluding values | `{1..10%3,7}` → 1, 2, 4, 5, 6, 8, 9, 10 |
+
+**More examples:**
+```bash
+# Reject even forum IDs 2-20
+--reject "f={2..20..2}&"
+
+# Reject IDs 1-50 except multiples of 5
+--reject "f={1..50%5,10,15,20,25,30,35,40,45,50}&"
+
+# Mix literal patterns and expressions in one flag
+--reject "action=;f={1..10%5}&;Special:"
+
+# Or use multiple --reject flags (they are combined)
+--reject "action=" --reject "f={1..10}&" --reject "Special:"
 ```
