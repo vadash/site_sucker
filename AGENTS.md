@@ -18,6 +18,7 @@ SiteSucker is a modular Python application that mirrors websites for offline use
 - **`mirror.py`**: Orchestrates the entire 4-pass pipeline
   - Entry point: `invoke_site_mirror()`
   - Returns: List of failed URLs
+  - Creates `output_dir/logs/` for replacement error logging
 
 - **`wget.py`**: Wget binary wrapper
   - `get_wget_path()`: Resolves `bin/wget.exe`
@@ -27,17 +28,26 @@ SiteSucker is a modular Python application that mirrors websites for offline use
   - `get_external_media()`: Parses HTML for external media URLs
   - Handles deduplication and URL normalization
 
-### Post-Processing
+### Post-Processing & Replacement Pipeline
 
-- **`repair_links.py`**: URL rewriter
+- **`replacement_pipeline.py`**: Unified replacement engine with validation
+  - `ReplacementStep`: Dataclass for defining regex/callable replacements
+  - `run_replacement_pipeline()`: Executes steps with automatic rollback on validation failure
+  - Validates HTML structure after each replacement (using `validate_html.py`)
+  - Logs failed replacements to `logs/NNNNN/` with file snapshot and pattern details
+  - **Key feature**: Prevents regex bugs from corrupting downloads
+
+- **`repair_links.py`**: URL rewriter (now uses pipeline)
   - `repair_external_links()`: Rewrites external URLs to local paths
   - Processes both HTML and CSS files
   - Strips CORS-blocking attributes
+  - Each replacement step validated automatically
 
-- **`repair_offline.py`**: Offline optimizer
+- **`repair_offline.py`**: Offline optimizer (now uses pipeline)
   - `repair_offline_html()`: Removes online-only resources
   - Handles MediaWiki (load.php), phpBB, tracking scripts
   - Injects fallback CSS
+  - All regex replacements defined as `ReplacementStep` list for clarity
   - **CAUTION**: Regex patterns removing `<script>` blocks MUST use `(?:(?!</script>)[\s\S])*?` boundary guards (see Regex Pitfalls)
 
 ### Configuration & Reporting
@@ -51,9 +61,10 @@ SiteSucker is a modular Python application that mirrors websites for offline use
   - Creates failures.log for failed URLs
 
 - **`validate_html.py`**: HTML integrity checker
-  - `validate_html_files()`: Detects truncated/corrupt downloads
+  - `validate_html_files()`: Detects truncated/corrupt downloads (directory scan)
+  - `validate_html_string()`: Validates single HTML content string (used by pipeline)
   - Checks for missing `</head>`, `<body>`, `</body>` tags and empty bodies
-  - Runs after wget pass 1, before post-processing
+  - Runs after wget pass 1, before post-processing; also after each replacement step
 
 ### CLI
 
@@ -208,6 +219,32 @@ The tool doesn't have a verbose flag, but you can:
 - **Permission errors**: Run with appropriate permissions
 - **Rate limiting**: Increase `WaitBetweenRequests`
 - **Large downloads**: Monitor disk space
+
+## Replacement Pipeline & Safety
+
+### Unified Replacement Architecture
+
+All regex and content replacements now go through `replacement_pipeline.py`:
+
+1. Each replacement is a `ReplacementStep` with name, pattern, and replacement
+2. Steps run sequentially; content validated after each change
+3. On validation failure: change reverted, logged to `logs/NNNNN/`, pipeline continues
+4. After all steps: final content written (only if modified)
+
+### Log Directory Structure
+
+Failed replacements create:
+```
+<output_dir>/logs/
+  00001/
+    index.html        # File content at point of failure
+    pattern.txt       # Step name, regex pattern, validation error
+  00002/
+    style.css
+    pattern.txt
+```
+
+This provides a debug trail for fixing problematic regexes without corrupting downloads.
 
 ## Regex Pitfalls
 

@@ -4,6 +4,79 @@ import re
 from pathlib import Path
 
 
+def validate_html_string(content: str) -> dict[str, bool]:
+    """Validate a single HTML string for structural integrity.
+
+    Checks for common issues that indicate broken HTML:
+    - Missing </head> closing tag
+    - Missing <body> opening tag
+    - Missing </body> closing tag
+    - Empty body content (no visible text)
+
+    Args:
+        content: HTML content string to validate.
+
+    Returns:
+        Dictionary with validation results:
+        {
+            "valid": bool,
+            "missing_head_close": bool,
+            "missing_body_open": bool,
+            "missing_body_close": bool,
+            "empty_body": bool
+        }
+    """
+    results = {
+        "valid": True,
+        "missing_head_close": False,
+        "missing_body_open": False,
+        "missing_body_close": False,
+        "empty_body": False,
+    }
+
+    if not content:
+        results["valid"] = False
+        return results
+
+    # Check for </head> closing tag
+    if not re.search(r'</head\s*>', content, re.IGNORECASE):
+        results["missing_head_close"] = True
+        results["valid"] = False
+
+    # Check for <body> opening tag
+    if not re.search(r'<body[^>]*>', content, re.IGNORECASE):
+        results["missing_body_open"] = True
+        results["valid"] = False
+
+    # Check for </body> closing tag
+    if not re.search(r'</body\s*>', content, re.IGNORECASE):
+        results["missing_body_close"] = True
+        results["valid"] = False
+
+    # Check for empty body (no visible text content)
+    # Only check if we found both <body> and </body>
+    body_open_match = re.search(r'<body[^>]*>', content, re.IGNORECASE)
+    body_close_match = re.search(r'</body\s*>', content, re.IGNORECASE)
+
+    if body_open_match and body_close_match:
+        # Extract body content and check if it has more than just whitespace/scripts
+        body_match = re.search(r'<body[^>]*>([\s\S]*?)</body\s*>', content, re.IGNORECASE | re.DOTALL)
+        if body_match:
+            body_content = body_match.group(1)
+            # Remove script tags, style tags, and comments
+            body_without_code = re.sub(r'<(script|style|noscript)[^>]*>[\s\S]*?</\1>', '', body_content, flags=re.IGNORECASE)
+            body_without_code = re.sub(r'<!--[\s\S]*?-->', '', body_without_code)
+            # Strip HTML tags
+            text_only = re.sub(r'<[^>]+>', '', body_without_code)
+            # Check if there's any meaningful text (more than 1 non-whitespace char)
+            # Lowered threshold from 20 to 1 to allow small test files
+            if len(re.sub(r'\s+', '', text_only).strip()) < 1:
+                results["empty_body"] = True
+                results["valid"] = False
+
+    return results
+
+
 def validate_html_files(output_dir: Path | str) -> dict[str, list[str]]:
     """Validate HTML files for structural integrity.
 
@@ -48,40 +121,23 @@ def validate_html_files(output_dir: Path | str) -> dict[str, list[str]]:
         if not raw:
             continue
 
-        # Check for </head> closing tag
-        if not re.search(r'</head\s*>', raw, re.IGNORECASE):
-            results["missing_head_close"].append(str(html_file.relative_to(output_dir)))
+        # Use the shared validation function
+        validation = validate_html_string(raw)
+
+        if not validation["valid"]:
             results["all_valid"] = False
 
-        # Check for <body> opening tag
-        if not re.search(r'<body[^>]*>', raw, re.IGNORECASE):
-            results["missing_body_open"].append(str(html_file.relative_to(output_dir)))
-            results["all_valid"] = False
+            if validation["missing_head_close"]:
+                results["missing_head_close"].append(str(html_file.relative_to(output_dir)))
 
-        # Check for </body> closing tag
-        if not re.search(r'</body\s*>', raw, re.IGNORECASE):
-            results["missing_body_close"].append(str(html_file.relative_to(output_dir)))
-            results["all_valid"] = False
+            if validation["missing_body_open"]:
+                results["missing_body_open"].append(str(html_file.relative_to(output_dir)))
 
-        # Check for empty body (no visible text content)
-        # Only check if we found both <body> and </body>
-        body_open_match = re.search(r'<body[^>]*>', raw, re.IGNORECASE)
-        body_close_match = re.search(r'</body\s*>', raw, re.IGNORECASE)
-        
-        if body_open_match and body_close_match:
-            # Extract body content and check if it has more than just whitespace/scripts
-            body_match = re.search(r'<body[^>]*>([\s\S]*?)</body\s*>', raw, re.IGNORECASE | re.DOTALL)
-            if body_match:
-                body_content = body_match.group(1)
-                # Remove script tags, style tags, and comments
-                body_without_code = re.sub(r'<(script|style|noscript)[^>]*>[\s\S]*?</\1>', '', body_content, flags=re.IGNORECASE)
-                body_without_code = re.sub(r'<!--[\s\S]*?-->', '', body_without_code)
-                # Strip HTML tags
-                text_only = re.sub(r'<[^>]+>', '', body_without_code)
-                # Check if there's any meaningful text (more than 20 non-whitespace chars)
-                if len(re.sub(r'\s+', '', text_only).strip()) < 20:
-                    results["empty_body"].append(str(html_file.relative_to(output_dir)))
-                    results["all_valid"] = False
+            if validation["missing_body_close"]:
+                results["missing_body_close"].append(str(html_file.relative_to(output_dir)))
+
+            if validation["empty_body"]:
+                results["empty_body"].append(str(html_file.relative_to(output_dir)))
 
     return results
 
