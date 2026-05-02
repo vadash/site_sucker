@@ -339,7 +339,7 @@ def repair_internal_links(
             rel_path_from_root = ""
         base_url = f"https://{target_domain}/{rel_path_from_root}"
 
-        # Rewrite all href attributes pointing to target_domain
+        # Rewrite all href attributes pointing to target_domain (for <a> tags)
         for tag in soup.find_all("a", href=True):
             href = tag["href"]
 
@@ -378,6 +378,50 @@ def repair_internal_links(
                 modified = True
             except ValueError:
                 continue
+
+        # Rewrite internal resource URLs (img, script, link, video, audio, source)
+        # This fixes images like <img src="/images/art/intro_amazon.jpg">
+        for tag in soup.find_all(['img', 'script', 'link', 'video', 'audio', 'source']):
+            # Check both src and href attributes
+            for attr in ('src', 'href'):
+                url = tag.get(attr)
+                if not url:
+                    continue
+
+                # Skip anchors, javascript, mailto, data URLs, and already-relative paths
+                if url.startswith(("#", "javascript:", "mailto:", "data:", "../")):
+                    continue
+
+                # Convert to absolute URL (handles absolute paths like /images/foo.jpg)
+                absolute_url = urljoin(base_url, url)
+
+                # Parse URL to check hostname
+                try:
+                    parsed = urlparse(absolute_url)
+                    if parsed.scheme not in ("http", "https"):
+                        continue
+                    if parsed.hostname != target_domain:
+                        continue
+                except Exception:
+                    continue
+
+                # Map URL to expected local file path
+                expected_path = url_to_filepath(absolute_url, output_dir)
+
+                # Resolve actual file (may have .html suffix or flattened path)
+                actual_path = resolve_local_file(expected_path, output_dir)
+
+                if not actual_path:
+                    # File doesn't exist locally, leave URL unchanged
+                    continue
+
+                # Build relative path from html_file to actual_path using os.path.relpath
+                try:
+                    rel_str = os.path.relpath(actual_path, html_file.parent)
+                    tag[attr] = Path(rel_str).as_posix()
+                    modified = True
+                except ValueError:
+                    continue
 
         if modified:
             with open(html_file, "w", encoding="utf-8", newline="") as f:

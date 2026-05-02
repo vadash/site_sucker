@@ -304,3 +304,82 @@ def test_repair_internal_links_preserves_external_links(tmp_path: Path):
 
     updated = html_file.read_text()
     assert "https://other-domain.com/page.html" in updated
+
+
+def test_repair_internal_links_rewrite_images(tmp_path: Path):
+    """Test internal image src URLs are rewritten to relative paths."""
+    images_dir = tmp_path / "images"
+    images_dir.mkdir()
+    (images_dir / "logo.png").write_text("fake png")
+
+    html_file = tmp_path / "index.html"
+    html_file.write_text(
+        '<html><body><img src="/images/logo.png" alt="Logo"></body></html>'
+    )
+
+    result = repair_links.repair_internal_links(tmp_path, "example.com")
+    assert result == 1
+
+    updated = html_file.read_text()
+    assert 'src="images/logo.png"' in updated
+    assert 'src="/images/logo.png"' not in updated
+
+
+def test_repair_internal_links_rewrite_scripts(tmp_path: Path):
+    """Test internal script src URLs are rewritten to relative paths."""
+    js_dir = tmp_path / "js"
+    js_dir.mkdir()
+    (js_dir / "app.js").write_text("console.log('test');")
+
+    html_file = tmp_path / "index.html"
+    html_file.write_text(
+        '<html><body><script src="/js/app.js"></script></body></html>'
+    )
+
+    result = repair_links.repair_internal_links(tmp_path, "example.com")
+    assert result == 1
+
+    updated = html_file.read_text()
+    assert 'src="js/app.js"' in updated
+    assert 'src="/js/app.js"' not in updated
+
+
+def test_repair_internal_links_rewrite_css_link(tmp_path: Path):
+    """Test internal link href URLs for stylesheets are rewritten to relative paths."""
+    styles_dir = tmp_path / "styles"
+    styles_dir.mkdir()
+    (styles_dir / "main.css").write_text("body { margin: 0; }")
+
+    html_file = tmp_path / "index.html"
+    html_file.write_text(
+        '<html><head><link href="/styles/main.css" rel="stylesheet"></head></html>'
+    )
+
+    result = repair_links.repair_internal_links(tmp_path, "example.com")
+    assert result == 1
+
+    updated = html_file.read_text()
+    assert 'href="styles/main.css"' in updated
+    assert 'href="/styles/main.css"' not in updated
+
+
+def test_repair_internal_links_rewrite_images_from_subdirectory(tmp_path: Path):
+    """Test image rewriting from a subdirectory HTML file."""
+    images_dir = tmp_path / "images"
+    images_dir.mkdir()
+    (images_dir / "logo.png").write_text("fake png")
+
+    doc_dir = tmp_path / "doc"
+    doc_dir.mkdir()
+    html_file = doc_dir / "page.html"
+    html_file.write_text(
+        '<html><body><img src="/images/logo.png" alt="Logo"></body></html>'
+    )
+
+    result = repair_links.repair_internal_links(tmp_path, "example.com")
+    assert result == 1
+
+    updated = html_file.read_text()
+    # From doc/page.html to images/logo.png should be ../images/logo.png
+    assert 'src="../images/logo.png"' in updated
+    assert 'src="/images/logo.png"' not in updated
