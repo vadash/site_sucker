@@ -67,11 +67,19 @@ def test_build_wget_args_basic(sample_settings: dict):
     assert "robots=off" in args
     assert "--no-proxy" in args
     assert "--no-verbose" in args
+    assert "--level=inf" in args
     assert "--directory-prefix=/tmp/output" in args
     assert f"--user-agent={sample_settings['UserAgent']}" in args
     assert f"--timeout={sample_settings['Timeout']}" in args
     assert f"--tries={sample_settings['Retries']}" in args
     assert "--header=Accept-Encoding: identity" in args
+
+
+def test_build_wget_args_with_max_depth(sample_settings: dict):
+    """Test building wget arguments with a specific max depth."""
+    sample_settings["MaxDepth"] = 4
+    args = wget.build_wget_args(sample_settings, "/tmp/output")
+    assert "--level=4" in args
 
 
 def test_build_wget_args_with_wait(sample_settings: dict):
@@ -111,6 +119,7 @@ def test_build_wget_args_with_reject_patterns(sample_settings: dict):
     assert "--reject-regex" in args
     # Should include forum-specific pattern with POSIX [0-9] not \d
     assert any("viewtopic\\.php.*&p=[0-9]+" in arg for arg in args)
+    assert any("viewtopic\\.php\\?p=[0-9]+" in arg for arg in args)
 
 
 def test_build_wget_args_extra_args(sample_settings: dict):
@@ -118,10 +127,12 @@ def test_build_wget_args_extra_args(sample_settings: dict):
     args = wget.build_wget_args(
         sample_settings,
         "/tmp/output",
-        extra_args=["--mirror", "--no-parent"],
+        extra_args=["-r", "-N", "--no-remove-listing", "--no-parent"],
     )
 
-    assert "--mirror" in args
+    assert "-r" in args
+    assert "-N" in args
+    assert "--no-remove-listing" in args
     assert "--no-parent" in args
 
 

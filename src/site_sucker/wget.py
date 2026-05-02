@@ -58,6 +58,13 @@ def build_wget_args(
         "--header=Accept-Encoding: identity",
     ]
 
+    # Respect MaxDepth (0 = infinite)
+    max_depth = settings.get("MaxDepth", 0)
+    if max_depth > 0:
+        args.append(f"--level={max_depth}")
+    else:
+        args.append("--level=inf")
+
     # Add wait if specified (helps avoid 429 rate limiting)
     if settings.get("WaitBetweenRequests", 0) > 0:
         args.append(f"--wait={settings['WaitBetweenRequests']}")
@@ -79,8 +86,9 @@ def build_wget_args(
         reject_parts.append(f"({reject_domains})")
 
     # Forum-specific: reject viewtopic.php?p= per-post duplicates
-    # POSIX ERE doesn't support \d, use [0-9] instead
-    reject_parts.append(r"viewtopic\.php.*&p=[0-9]+|viewtopic\.php\?p=[0-9]+")
+    # Split into separate patterns to avoid POSIX ERE precedence bugs with |
+    reject_parts.append(r"viewtopic\.php.*&p=[0-9]+")
+    reject_parts.append(r"viewtopic\.php\?p=[0-9]+")
 
     if reject_parts:
         combined = "|".join(reject_parts)

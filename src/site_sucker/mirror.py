@@ -54,7 +54,9 @@ def invoke_site_mirror(
         settings,
         output_dir,
         extra_args=[
-            "--mirror",
+            "-r",
+            "-N",
+            "--no-remove-listing",
             "--no-parent",
             "--page-requisites",
             f"--domains={target_domain}",
