@@ -4,75 +4,65 @@
   // ============================================
   // This file controls how websites are downloaded and processed.
   // RejectPatterns exclude low-value pages during the crawl phase.
-
   // HTTP client settings
   "UserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
-  "Timeout": 15,          // seconds to wait for server response
-  "Retries": 3,           // number of retry attempts for failed requests
-  "WaitBetweenRequests": 1.5,  // seconds to wait between requests (be polite)
-
+  "Timeout": 15, // seconds to wait for server response
+  "Retries": 3, // number of retry attempts for failed requests
+  "WaitBetweenRequests": 3, // seconds to wait between requests (be polite)
   // Crawl behavior
-  "MaxDepth": 4,          // maximum recursion depth (0 = unlimited)
+  "MaxDepth": 4, // maximum recursion depth (0 = unlimited)
   "ParallelDownloads": 2, // number of concurrent download threads
-
   // Output settings
-  "OutputRoot": "./downloads",  // where to save downloaded sites
-
+  "OutputRoot": "./downloads", // where to save downloaded sites
   // URL rejection patterns (matched as substrings)
   // These skip low-value or transient pages during the wget pass
   "RejectPatterns": [
     // MediaWiki patterns
-    "action=",            // edit/history action pages (duplicates)
-    "oldid=",             // old revision pages (duplicates)
-    "diff=",              // diff comparison pages (transient)
-    "printable=",         // printable versions (redundant)
-    "returnto=",          // redirect pages (transient)
-    "redirect=",          // general redirect URLs (transient)
-    "Special:",           // special pages (dynamic, not archived)
-    "Talk:",              // talk discussion pages (low priority)
-    "User:",              // user profile pages (low priority)
-    "User_talk:",         // user talk pages (low priority)
-    "Category_talk:",     // category talk pages (low priority)
-    "load.php",           // ResourceLoader modules (served locally in offline mode)
-    "api.php",            // API endpoint (not browsable content)
-
+    "action=", // edit/history action pages (duplicates)
+    "oldid=", // old revision pages (duplicates)
+    "diff=", // diff comparison pages (transient)
+    "printable=", // printable versions (redundant)
+    "returnto=", // redirect pages (transient)
+    "redirect=", // general redirect URLs (transient)
+    "Special:", // special pages (dynamic, not archived)
+    "Talk:", // talk discussion pages (low priority)
+    "User:", // user profile pages (low priority)
+    "User_talk:", // user talk pages (low priority)
+    "Category_talk:", // category talk pages (low priority)
+    "load.php", // ResourceLoader modules (served locally in offline mode)
+    "api.php", // API endpoint (not browsable content)
     // phpBB patterns
-    "search.php",         // blocks Active Topics, Unread Posts, user post histories (main source of duplicate URL permutations)
-    "view=",              // blocks view=unread, view=next, view=previous, view=print
-    "hilit=",             // blocks search highlighting duplicates (huge source of duplicates)
-    "style=",             // blocks theme-switching duplicates
-    "mark=",              // blocks "mark forums read" duplicates
-    "mode=reply",         // empty reply form pages (useless offline)
-    "mode=login",         // login pages (don't work offline)
-    "mode=register",      // registration pages (don't work offline)
-    "mode=quote",         // quote reply pages (transient)
-    "mode=viewprofile",   // user profile pages (low value)
-    "tradegold.php",      // trade/gold pages (game-specific, not archived)
-    "cron.php",           // background cron tasks (admin-only)
-    "feed.php",           // RSS/Atom feeds (tiny, not useful offline)
-    "ucp.php",            // user control panel (requires login)
-    "mcp.php",            // moderator control panel (requires login)
-    "faq.php",            // FAQ pages (usually static, low priority)
-    "download/file.php",   // attachments/avatars (large, optional; downloaded separately if needed)
-    "&sk=",                // Sort Key (Author, Time, Subject) - prevents re-downloading forum indexes in every sort order
-    "&sd=",                // Sort Direction (Ascending, Descending) - same as above
-    "&st=",                // Sort Time (1 day, 7 days, etc.) - same as above
-    // ─── ⚠️ EXPERIMENTAL: sid= Session ID blocking ─────────────────────
-    // phpBB appends &sid=<32-char-hex> to every URL on the first page load.
-    // This can cause infinite crawl loops. Blocking it is generally safe for
-    // guest/archival crawls because Wget handles cookies natively and drops
-    // sid after the first few requests. HOWEVER: if the crawler stops
-    // discovering ANY links after adding this, REMOVE THIS PATTERN IMMEDIATELY
-    // — it means the starting page links all carry sid= and Wget rejects them all.
-    "&sid="                // Session IDs (infinite loop trap — TEST FIRST!)
+    "search.php", // blocks Active Topics, Unread Posts, user post histories (main source of duplicate URL permutations)
+    "view=", // blocks view=unread, view=next, view=previous, view=print
+    "hilit=", // blocks search highlighting duplicates (huge source of duplicates)
+    "style=", // blocks theme-switching duplicates
+    "mark=", // blocks "mark forums read" duplicates
+    "mode=reply", // empty reply form pages (useless offline)
+    "mode=login", // login pages (don't work offline)
+    "mode=register", // registration pages (don't work offline)
+    "mode=quote", // quote reply pages (transient)
+    "mode=viewprofile", // user profile pages (low value)
+    "tradegold.php", // trade/gold pages (game-specific, not archived)
+    "cron.php", // background cron tasks (admin-only)
+    "feed.php", // RSS/Atom feeds (tiny, not useful offline)
+    "ucp.php", // user control panel (requires login)
+    "mcp.php", // moderator control panel (requires login)
+    "faq.php", // FAQ pages (usually static, low priority)
+    "memberlist.php", // more crap
+    "admin.php", // more crap
+    "coc.php", // more crap
+    "posting.php", // no need posting
+    "download/file.php", // attachments/avatars (large, optional; downloaded separately if needed)
+    "&sk=", // Sort Key (Author, Time, Subject) - prevents re-downloading forum indexes in every sort order
+    "&sd=", // Sort Direction (Ascending, Descending) - same as above
+    "&st=", // Sort Time (1 day, 7 days, etc.) - same as above
+    "ZZZXXXCCC" // LAST
   ],
-
   // Domains to block entirely (analytics, tracking)
   "RejectDomains": [
     "matomo.",
     "analytics."
   ],
-
   // File extensions to treat as media during parallel download pass
   "MediaExtensions": [
     // Images
