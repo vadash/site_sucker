@@ -77,14 +77,13 @@ def build_wget_args(
         reject_domains = "|".join(settings["RejectDomains"])
         reject_parts.append(f"({reject_domains})")
 
+    # Forum-specific: reject viewtopic.php?p= per-post duplicates
+    reject_parts.append(r"viewtopic\.php.*&p=\d+|viewtopic\.php\?p=\d+")
+
     if reject_parts:
         combined = "|".join(reject_parts)
         args.append("--reject-regex")
         args.append(f".*({combined}).*")
-
-    # Forum-specific: reject viewtopic.php?p= per-post duplicates
-    args.append("--reject-regex")
-    args.append(r"viewtopic\.php.*&p=\d+|viewtopic\.php\?p=\d+")
 
     if extra_args:
         args.extend(extra_args)
