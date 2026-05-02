@@ -122,3 +122,28 @@ def test_build_wget_args_extra_args(sample_settings: dict):
 
     assert "--mirror" in args
     assert "--no-parent" in args
+
+
+def test_build_wget_args_with_extra_reject_patterns():
+    """Test that extra reject patterns from CLI are included in wget args."""
+    settings = {
+        "UserAgent": "Test",
+        "Timeout": 10,
+        "Retries": 2,
+        "RejectPatterns": ["f=31&", "f=8&", "f=11&"],
+        "RejectDomains": [],
+    }
+
+    args = wget.build_wget_args(settings, "/tmp/output")
+
+    # The patterns should be combined into a reject-regex
+    reject_regex_args = [args[i + 1] for i, arg in enumerate(args) if arg == "--reject-regex"]
+
+    # Should have at least one --reject-regex argument
+    assert len(reject_regex_args) >= 1
+
+    # The patterns should be present in the combined regex
+    combined_regex = " ".join(reject_regex_args)
+    assert "f=31&" in combined_regex
+    assert "f=8&" in combined_regex
+    assert "f=11&" in combined_regex

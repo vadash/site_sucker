@@ -55,16 +55,17 @@ def load_settings(settings_path: Path | str | None = None) -> dict[str, Any]:
 
 
 def merge_cli_overrides(settings: dict[str, Any], parallel: int | None = None,
-                        depth: int | None = None) -> dict[str, Any]:
+                        depth: int | None = None, extra_reject: list[str] | None = None) -> dict[str, Any]:
     """Merge CLI parameter overrides into settings.
 
     Args:
         settings: Base settings dictionary.
         parallel: Override for ParallelDownloads.
         depth: Override for MaxDepth.
+        extra_reject: Additional reject patterns. Supports semicolon-delimited values.
 
     Returns:
-        Updated settings dictionary.
+        Updated settings dictionary (original is never mutated).
     """
     result = settings.copy()
 
@@ -73,5 +74,15 @@ def merge_cli_overrides(settings: dict[str, Any], parallel: int | None = None,
 
     if depth is not None and depth > 0:
         result["MaxDepth"] = depth
+
+    if extra_reject:
+        # Split semicolon-delimited patterns and append to RejectPatterns
+        additional_patterns = []
+        for reject_list in extra_reject:
+            additional_patterns.extend(p.strip() for p in reject_list.split(";") if p.strip())
+
+        if additional_patterns:
+            # Create a new list to avoid mutating the original settings
+            result["RejectPatterns"] = list(result.get("RejectPatterns", [])) + additional_patterns
 
     return result

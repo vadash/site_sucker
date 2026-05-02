@@ -99,6 +99,9 @@ When you run without arguments, you'll be prompted for:
 
 # Custom settings file
 .venv\Scripts\python.exe -m site_sucker https://example.com --settings ./my_settings.json
+
+# Block specific URL patterns (e.g., phpBB forum categories)
+.venv\Scripts\python.exe -m site_sucker https://forum.example.com --reject "f=31&;f=8&;f=11&"
 ```
 
 ## Configuration

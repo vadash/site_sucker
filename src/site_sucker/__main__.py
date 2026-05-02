@@ -56,6 +56,13 @@ Examples:
         help="Number of parallel downloads for external media (default: 4)",
     )
 
+    parser.add_argument(
+        "-r", "--reject",
+        dest="extra_reject",
+        action="append",
+        help="Additional URL patterns to reject (use ; for multiple patterns in one flag)",
+    )
+
     return parser.parse_args()
 
 
@@ -110,7 +117,7 @@ def main() -> None:
     cfg = settings.load_settings(args.settings_path)
 
     # Merge CLI overrides
-    cfg = settings.merge_cli_overrides(cfg, args.parallel, args.depth)
+    cfg = settings.merge_cli_overrides(cfg, args.parallel, args.depth, args.extra_reject)
 
     # Parse URL and determine target domain
     url = args.url

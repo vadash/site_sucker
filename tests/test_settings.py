@@ -86,3 +86,65 @@ def test_merge_cli_overrides_zero_values():
     # Zeros should not override existing values
     assert result["ParallelDownloads"] == 4
     assert result["MaxDepth"] == 5
+
+
+def test_merge_cli_overrides_extra_reject_single():
+    """Test merging a single extra reject pattern."""
+    base = {"RejectPatterns": ["pattern1"]}
+    result = settings.merge_cli_overrides(base, extra_reject=["f=31&"])
+
+    assert "f=31&" in result["RejectPatterns"]
+    assert "pattern1" in result["RejectPatterns"]
+
+
+def test_merge_cli_overrides_extra_reject_multiple_flags():
+    """Test merging multiple extra reject patterns via separate flags."""
+    base = {"RejectPatterns": ["pattern1"]}
+    result = settings.merge_cli_overrides(base, extra_reject=["f=31&", "f=8&", "f=11&"])
+
+    assert "f=31&" in result["RejectPatterns"]
+    assert "f=8&" in result["RejectPatterns"]
+    assert "f=11&" in result["RejectPatterns"]
+    assert "pattern1" in result["RejectPatterns"]
+
+
+def test_merge_cli_overrides_extra_reject_semicolon_delimited():
+    """Test merging semicolon-delimited reject patterns."""
+    base = {"RejectPatterns": ["pattern1"]}
+    result = settings.merge_cli_overrides(base, extra_reject=["f=31&;f=8&;f=11&"])
+
+    assert "f=31&" in result["RejectPatterns"]
+    assert "f=8&" in result["RejectPatterns"]
+    assert "f=11&" in result["RejectPatterns"]
+    assert "pattern1" in result["RejectPatterns"]
+
+
+def test_merge_cli_overrides_extra_reject_mixed():
+    """Test mixing semicolon-delimited and single patterns."""
+    base = {"RejectPatterns": []}
+    result = settings.merge_cli_overrides(base, extra_reject=["f=31&;f=8&", "f=11&"])
+
+    assert "f=31&" in result["RejectPatterns"]
+    assert "f=8&" in result["RejectPatterns"]
+    assert "f=11&" in result["RejectPatterns"]
+
+
+def test_merge_cli_overrides_extra_reject_whitespace_handling():
+    """Test that whitespace is trimmed from semicolon-delimited patterns."""
+    base = {"RejectPatterns": []}
+    result = settings.merge_cli_overrides(base, extra_reject=["f=31& ; f=8& ; f=11&"])
+
+    assert "f=31&" in result["RejectPatterns"]
+    assert "f=8&" in result["RejectPatterns"]
+    assert "f=11&" in result["RejectPatterns"]
+
+
+def test_merge_cli_overrides_does_not_mutate_original():
+    """Test that the original settings dict is not mutated."""
+    base = {"RejectPatterns": ["pattern1"]}
+    original_patterns = base["RejectPatterns"].copy()
+
+    settings.merge_cli_overrides(base, extra_reject=["f=31&"])
+
+    assert base["RejectPatterns"] == original_patterns
+    assert "f=31&" not in base["RejectPatterns"]
