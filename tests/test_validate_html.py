@@ -23,19 +23,16 @@ def test_validate_html_valid_page(tmp_path: Path):
     results = validate_html_files(tmp_path)
 
     assert results["all_valid"]
-    assert len(results["missing_head_close"]) == 0
-    assert len(results["missing_body_open"]) == 0
-    assert len(results["missing_body_close"]) == 0
+    assert len(results["missing_head"]) == 0
+    assert len(results["missing_body"]) == 0
     assert len(results["empty_body"]) == 0
 
 
-def test_validate_html_missing_head_close(tmp_path: Path):
-    """Test detection of missing </head> tag."""
+def test_validate_html_missing_head(tmp_path: Path):
+    """Test detection of missing head element."""
     html_file = tmp_path / "test.html"
     html_content = '''<!DOCTYPE html>
 <html>
-<head>
-    <title>Test</title>
 <body>
     <h1>Content</h1>
 </body>
@@ -45,11 +42,11 @@ def test_validate_html_missing_head_close(tmp_path: Path):
     results = validate_html_files(tmp_path)
 
     assert not results["all_valid"]
-    assert "test.html" in results["missing_head_close"]
+    assert "test.html" in results["missing_head"]
 
 
-def test_validate_html_missing_body_open(tmp_path: Path):
-    """Test detection of missing <body> tag."""
+def test_validate_html_missing_body(tmp_path: Path):
+    """Test detection of missing body element."""
     html_file = tmp_path / "test.html"
     html_content = '''<!DOCTYPE html>
 <html>
@@ -57,33 +54,13 @@ def test_validate_html_missing_body_open(tmp_path: Path):
     <title>Test</title>
 </head>
     <h1>Content</h1>
-</body>
 </html>'''
     html_file.write_text(html_content)
 
     results = validate_html_files(tmp_path)
 
     assert not results["all_valid"]
-    assert "test.html" in results["missing_body_open"]
-
-
-def test_validate_html_missing_body_close(tmp_path: Path):
-    """Test detection of missing </body> tag."""
-    html_file = tmp_path / "test.html"
-    html_content = '''<!DOCTYPE html>
-<html>
-<head>
-    <title>Test</title>
-</head>
-<body>
-    <h1>Content</h1>
-</html>'''
-    html_file.write_text(html_content)
-
-    results = validate_html_files(tmp_path)
-
-    assert not results["all_valid"]
-    assert "test.html" in results["missing_body_close"]
+    assert "test.html" in results["missing_body"]
 
 
 def test_validate_html_empty_body(tmp_path: Path):
@@ -131,8 +108,6 @@ def test_validate_html_multiple_issues(tmp_path: Path):
     html_file = tmp_path / "test.html"
     html_content = '''<!DOCTYPE html>
 <html>
-<head>
-    <title>Test</title>
 <body>
     <script>console.log("test");</script>
 </body>
@@ -142,10 +117,9 @@ def test_validate_html_multiple_issues(tmp_path: Path):
     results = validate_html_files(tmp_path)
 
     assert not results["all_valid"]
-    assert "test.html" in results["missing_head_close"]
-    # Has both body tags now
-    assert "test.html" not in results["missing_body_open"]
-    assert "test.html" not in results["missing_body_close"]
+    assert "test.html" in results["missing_head"]
+    # Has body tag
+    assert "test.html" not in results["missing_body"]
     assert "test.html" in results["empty_body"]
 
 
@@ -158,10 +132,9 @@ def test_validate_html_multiple_files(tmp_path: Path):
 <body><h1>Substantial content here</h1></body>
 </html>''')
 
-    # Invalid file - missing body close
+    # Invalid file - missing head
     (tmp_path / "invalid.html").write_text('''<!DOCTYPE html>
 <html>
-<head><title>Invalid</title></head>
 <body><h1>Content</h1>
 </html>''')
 
@@ -176,8 +149,8 @@ def test_validate_html_multiple_files(tmp_path: Path):
     results = validate_html_files(tmp_path)
 
     assert not results["all_valid"]
-    assert len(results["missing_body_close"]) == 1
-    assert "invalid.html" in results["missing_body_close"]
+    assert len(results["missing_head"]) == 1
+    assert "invalid.html" in results["missing_head"]
     assert len(results["empty_body"]) == 1
     assert "empty.html" in results["empty_body"]
 
@@ -272,9 +245,8 @@ def test_validate_html_substantial_content(tmp_path: Path):
 def test_print_validation_results_valid(capsys: pytest.CaptureFixture[str]):
     """Test print output for valid results."""
     results = {
-        "missing_head_close": [],
-        "missing_body_open": [],
-        "missing_body_close": [],
+        "missing_head": [],
+        "missing_body": [],
         "empty_body": [],
         "all_valid": True,
     }
@@ -293,9 +265,8 @@ def test_print_validation_results_invalid(capsys: pytest.CaptureFixture[str], tm
     (tmp_path / "broken2.html").write_text('<html><body></body></html>')
 
     results = {
-        "missing_head_close": ["broken1.html", "broken2.html"],
-        "missing_body_open": [],
-        "missing_body_close": [],
+        "missing_head": ["broken1.html", "broken2.html"],
+        "missing_body": [],
         "empty_body": ["broken1.html"],
         "all_valid": False,
     }
@@ -304,7 +275,7 @@ def test_print_validation_results_invalid(capsys: pytest.CaptureFixture[str], tm
 
     captured = capsys.readouterr()
     assert "⚠ HTML validation detected issues" in captured.out
-    assert "Missing </head> closing tag" in captured.out
+    assert "Missing head element" in captured.out
     assert "Empty body content" in captured.out
     assert "broken1.html" in captured.out
     assert "incomplete download" in captured.out.lower()

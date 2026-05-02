@@ -1,9 +1,11 @@
-"""External media scanner for downloaded HTML files."""
+"""External media scanner for downloaded HTML and CSS files."""
 
 import re
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
+
+from bs4 import BeautifulSoup
 
 
 def get_external_media(
@@ -13,8 +15,9 @@ def get_external_media(
 ) -> set[str]:
     """Scan downloaded HTML and CSS for external media URLs.
 
-    Parses all HTML and CSS files in the output directory to find external media URLs
-    (images, videos, CSS, JS, fonts) that are hosted on different domains.
+    Uses BeautifulSoup for HTML files (scans href/src attributes on relevant tags).
+    Uses regex for CSS files (scans url() references).
+
     Performs deduplication and URL normalization.
 
     Args:
@@ -30,9 +33,6 @@ def get_external_media(
 
     ext_urls = set()
 
-    # Regex to find href/src attributes
-    href_src_pattern = re.compile(r'(?:href|src)=["\'](https?://[^"\'#]+)["\']')
-
     # Regex to find url() references in CSS (including quotes and without)
     css_url_pattern = re.compile(r'url\(\s*["\']?(https?://[^"\'\\)]+)["\']?\s*\)')
 
@@ -45,7 +45,7 @@ def get_external_media(
     html_files = list(output_dir.rglob("*.html")) + list(output_dir.rglob("*.htm"))
     css_files = list(output_dir.rglob("*.css"))
 
-    # ── PART 1: Scan HTML files ────────────────────────────────────────────────
+    # ── PART 1: Scan HTML files with BeautifulSoup ─────────────────────────────
     for html_file in html_files:
         try:
             with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
@@ -56,29 +56,42 @@ def get_external_media(
         if not raw:
             continue
 
-        for match in href_src_pattern.finditer(raw):
-            url_count += 1
-            url = match.group(1)
+        # Parse HTML with BeautifulSoup
+        soup = BeautifulSoup(raw, 'lxml')
 
-            # Skip URLs from the target domain
-            # Only skip if hostname exactly matches target domain
-            # e.g., example.com matches example.com
-            # but cdn.example.com does NOT match example.com (different domain)
-            try:
-                url_host = urlparse(url).hostname or ""
-                if url_host == target_domain:
+        # Scan all tags that can have media URLs
+        for tag in soup.find_all(['img', 'script', 'link', 'video', 'audio', 'source']):
+            # Check src and href attributes
+            for attr in ('src', 'href', 'data-src'):
+                url = tag.get(attr)
+                if not url:
                     continue
-            except Exception:
-                # If we can't parse the URL, skip it
-                continue
 
-            # Skip non-media URLs
-            if not media_regex.search(url):
-                continue
+                url_count += 1
 
-            # Normalize URL: strip query string for deduplication
-            normalized_url = url.split("?")[0]
-            ext_urls.add(normalized_url)
+                # Skip non-HTTP URLs
+                if not url.startswith(('http://', 'https://')):
+                    continue
+
+                # Skip URLs from the target domain
+                # Only skip if hostname exactly matches target domain
+                # e.g., example.com matches example.com
+                # but cdn.example.com does NOT match example.com (different domain)
+                try:
+                    url_host = urlparse(url).hostname or ""
+                    if url_host == target_domain:
+                        continue
+                except Exception:
+                    # If we can't parse the URL, skip it
+                    continue
+
+                # Skip non-media URLs
+                if not media_regex.search(url):
+                    continue
+
+                # Normalize URL: strip query string for deduplication
+                normalized_url = url.split("?")[0]
+                ext_urls.add(normalized_url)
 
     # ── PART 2: Scan CSS files for url() references ─────────────────────────────
     css_url_count = 0

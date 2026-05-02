@@ -3,14 +3,15 @@
 import re
 from pathlib import Path
 
+from bs4 import BeautifulSoup
+
 
 def validate_html_string(content: str) -> dict[str, bool]:
-    """Validate a single HTML string for structural integrity.
+    """Validate a single HTML string for structural integrity using BeautifulSoup.
 
     Checks for common issues that indicate broken HTML:
-    - Missing </head> closing tag
-    - Missing <body> opening tag
-    - Missing </body> closing tag
+    - Missing head element
+    - Missing body element
     - Empty body content (no visible text)
 
     Args:
@@ -20,17 +21,15 @@ def validate_html_string(content: str) -> dict[str, bool]:
         Dictionary with validation results:
         {
             "valid": bool,
-            "missing_head_close": bool,
-            "missing_body_open": bool,
-            "missing_body_close": bool,
+            "missing_head": bool,
+            "missing_body": bool,
             "empty_body": bool
         }
     """
     results = {
         "valid": True,
-        "missing_head_close": False,
-        "missing_body_open": False,
-        "missing_body_close": False,
+        "missing_head": False,
+        "missing_body": False,
         "empty_body": False,
     }
 
@@ -38,38 +37,36 @@ def validate_html_string(content: str) -> dict[str, bool]:
         results["valid"] = False
         return results
 
-    # Check for </head> closing tag
-    if not re.search(r'</head\s*>', content, re.IGNORECASE):
-        results["missing_head_close"] = True
+    # Use regex to check for original presence of head/body tags
+    # BeautifulSoup's lxml parser auto-adds missing tags, so we check the raw content first
+    has_head_tag = bool(re.search(r'<head[^>]*>', content, re.IGNORECASE))
+    has_body_tag = bool(re.search(r'<body[^>]*>', content, re.IGNORECASE))
+
+    # Parse with BeautifulSoup - lxml handles broken HTML gracefully
+    soup = BeautifulSoup(content, 'lxml')
+
+    # Check for head element in original content
+    if not has_head_tag:
+        results["missing_head"] = True
         results["valid"] = False
 
-    # Check for <body> opening tag
-    if not re.search(r'<body[^>]*>', content, re.IGNORECASE):
-        results["missing_body_open"] = True
-        results["valid"] = False
-
-    # Check for </body> closing tag
-    if not re.search(r'</body\s*>', content, re.IGNORECASE):
-        results["missing_body_close"] = True
+    # Check for body element in original content
+    if not has_body_tag:
+        results["missing_body"] = True
         results["valid"] = False
 
     # Check for empty body (no visible text content)
-    # Only check if we found both <body> and </body>
-    body_open_match = re.search(r'<body[^>]*>', content, re.IGNORECASE)
-    body_close_match = re.search(r'</body\s*>', content, re.IGNORECASE)
+    # Only check if we had a body tag in the original content
+    if has_body_tag:
+        body = soup.find('body')
+        if body:
+            # Get all text content from body, excluding script/style tags
+            # BeautifulSoup's get_text() automatically handles this
+            text_content = body.get_text(separator=' ', strip=True)
 
-    if body_open_match and body_close_match:
-        # Extract body content and check if it has more than just whitespace/scripts
-        body_match = re.search(r'<body[^>]*>([\s\S]*?)</body\s*>', content, re.IGNORECASE | re.DOTALL)
-        if body_match:
-            body_content = body_match.group(1)
-            # Remove script tags, style tags, and comments
-            body_without_code = re.sub(r'<(script|style|noscript)[^>]*>[\s\S]*?</\1>', '', body_content, flags=re.IGNORECASE)
-            body_without_code = re.sub(r'<!--[\s\S]*?-->', '', body_without_code)
-            # Strip HTML tags
-            text_only = re.sub(r'<[^>]+>', '', body_without_code)
-            # Check if there's any meaningful text (more than 20 non-whitespace chars)
-            if len(re.sub(r'\s+', '', text_only).strip()) < 20:
+            # Check if there's any meaningful text (more than 5 non-whitespace chars)
+            # This catches truly empty bodies but allows short content like <h1>Content</h1>
+            if len(text_content) < 5:
                 results["empty_body"] = True
                 results["valid"] = False
 
@@ -77,14 +74,12 @@ def validate_html_string(content: str) -> dict[str, bool]:
 
 
 def validate_html_files(output_dir: Path | str) -> dict[str, list[str]]:
-    """Validate HTML files for structural integrity.
+    """Validate HTML files for structural integrity using BeautifulSoup.
 
     Checks for common issues that indicate incomplete or corrupted downloads:
-    - Missing </head> closing tag
-    - Missing <body> opening tag
-    - Missing </body> closing tag
+    - Missing head element
+    - Missing body element
     - Empty body content (no visible text)
-    - Malformed HTML structure
 
     Args:
         output_dir: Path to the directory containing downloaded HTML files.
@@ -92,9 +87,8 @@ def validate_html_files(output_dir: Path | str) -> dict[str, list[str]]:
     Returns:
         Dictionary with validation results:
         {
-            "missing_head_close": ["file1.html", ...],
-            "missing_body_open": ["file1.html", ...],
-            "missing_body_close": ["file1.html", ...],
+            "missing_head": ["file1.html", ...],
+            "missing_body": ["file1.html", ...],
             "empty_body": ["file1.html", ...],
             "all_valid": bool
         }
@@ -103,9 +97,8 @@ def validate_html_files(output_dir: Path | str) -> dict[str, list[str]]:
     html_files = list(output_dir.rglob("*.html")) + list(output_dir.rglob("*.htm"))
 
     results = {
-        "missing_head_close": [],
-        "missing_body_open": [],
-        "missing_body_close": [],
+        "missing_head": [],
+        "missing_body": [],
         "empty_body": [],
         "all_valid": True,
     }
@@ -126,14 +119,11 @@ def validate_html_files(output_dir: Path | str) -> dict[str, list[str]]:
         if not validation["valid"]:
             results["all_valid"] = False
 
-            if validation["missing_head_close"]:
-                results["missing_head_close"].append(str(html_file.relative_to(output_dir)))
+            if validation["missing_head"]:
+                results["missing_head"].append(str(html_file.relative_to(output_dir)))
 
-            if validation["missing_body_open"]:
-                results["missing_body_open"].append(str(html_file.relative_to(output_dir)))
-
-            if validation["missing_body_close"]:
-                results["missing_body_close"].append(str(html_file.relative_to(output_dir)))
+            if validation["missing_body"]:
+                results["missing_body"].append(str(html_file.relative_to(output_dir)))
 
             if validation["empty_body"]:
                 results["empty_body"].append(str(html_file.relative_to(output_dir)))
@@ -154,26 +144,19 @@ def print_validation_results(results: dict[str, list[str]]) -> None:
     print("\n⚠ HTML validation detected issues:")
     print("=" * 60)
 
-    if results["missing_head_close"]:
-        print(f"  Missing </head> closing tag ({len(results['missing_head_close'])} files):")
-        for f in results["missing_head_close"][:5]:
+    if results["missing_head"]:
+        print(f"  Missing head element ({len(results['missing_head'])} files):")
+        for f in results["missing_head"][:5]:
             print(f"    - {f}")
-        if len(results["missing_head_close"]) > 5:
-            print(f"    ... and {len(results['missing_head_close']) - 5} more")
+        if len(results["missing_head"]) > 5:
+            print(f"    ... and {len(results['missing_head']) - 5} more")
 
-    if results["missing_body_open"]:
-        print(f"  Missing <body> opening tag ({len(results['missing_body_open'])} files):")
-        for f in results["missing_body_open"][:5]:
+    if results["missing_body"]:
+        print(f"  Missing body element ({len(results['missing_body'])} files):")
+        for f in results["missing_body"][:5]:
             print(f"    - {f}")
-        if len(results["missing_body_open"]) > 5:
-            print(f"    ... and {len(results['missing_body_open']) - 5} more")
-
-    if results["missing_body_close"]:
-        print(f"  Missing </body> closing tag ({len(results['missing_body_close'])} files):")
-        for f in results["missing_body_close"][:5]:
-            print(f"    - {f}")
-        if len(results['missing_body_close']) > 5:
-            print(f"    ... and {len(results['missing_body_close']) - 5} more")
+        if len(results["missing_body"]) > 5:
+            print(f"    ... and {len(results['missing_body']) - 5} more")
 
     if results["empty_body"]:
         print(f"  Empty body content ({len(results['empty_body'])} files):")

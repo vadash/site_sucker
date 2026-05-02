@@ -24,31 +24,34 @@ SiteSucker is a modular Python application that mirrors websites for offline use
   - `get_wget_path()`: Resolves `bin/wget.exe`
   - `build_wget_args()`: Constructs argument arrays from settings
 
-- **`media.py`**: External media scanner
-  - `get_external_media()`: Parses HTML for external media URLs
+- **`media.py`**: External media scanner (BeautifulSoup for HTML, regex for CSS)
+  - `get_external_media()`: Parses HTML/CSS for external media URLs
+  - HTML: Uses BeautifulSoup to scan href/src attributes on relevant tags
+  - CSS: Uses regex to scan url() references
   - Handles deduplication and URL normalization
 
 ### Post-Processing & Replacement Pipeline
 
-- **`replacement_pipeline.py`**: Unified replacement engine with validation
+- **`replacement_pipeline.py`**: Unified replacement engine with validation (CSS-only)
   - `ReplacementStep`: Dataclass for defining regex/callable replacements
   - `run_replacement_pipeline()`: Executes steps with automatic rollback on validation failure
-  - Validates HTML structure after each replacement (using `validate_html.py`)
+  - Validates CSS content after each replacement (checks for non-empty content)
   - Logs failed replacements to `logs/NNNNN/` with file snapshot and pattern details
-  - **Key feature**: Prevents regex bugs from corrupting downloads
+  - **Key feature**: Prevents regex bugs from corrupting CSS files
+  - **Note**: HTML processing now uses BeautifulSoup, not this pipeline
 
-- **`repair_links.py`**: URL rewriter (now uses pipeline)
+- **`repair_links.py`**: URL rewriter (BeautifulSoup for HTML, pipeline for CSS)
   - `repair_external_links()`: Rewrites external URLs to local paths
-  - Processes both HTML and CSS files
-  - Strips CORS-blocking attributes
-  - Each replacement step validated automatically
+  - HTML files: Uses BeautifulSoup for safe DOM manipulation (URL rewriting + CORS attribute stripping)
+  - CSS files: Uses regex pipeline for @import inlining, absolute path conversion, and external URL stripping
+  - Each CSS replacement step validated automatically
 
-- **`repair_offline.py`**: Offline optimizer (now uses pipeline)
-  - `repair_offline_html()`: Removes online-only resources
-  - Handles MediaWiki (load.php), phpBB, tracking scripts
+- **`repair_offline.py`**: Offline optimizer (BeautifulSoup-based)
+  - `repair_offline_html()`: Removes online-only resources using BeautifulSoup DOM operations
+  - Handles MediaWiki (load.php), phpBB, tracking scripts, preconnect/dns-prefetch hints
   - Injects fallback CSS
-  - All regex replacements defined as `ReplacementStep` list for clarity
-  - **CAUTION**: Regex patterns removing `<script>` blocks MUST use `(?:(?!</script>)[\s\S])*?` boundary guards (see Regex Pitfalls)
+  - All HTML tag removal uses `find_all()` + `.decompose()` — safe, cannot corrupt HTML structure
+  - Inline JavaScript cleanup (GA calls, push calls) uses regex on serialized output
 
 ### Configuration & Reporting
 
@@ -61,11 +64,11 @@ SiteSucker is a modular Python application that mirrors websites for offline use
   - `write_site_report()`: Generates download summary
   - Creates failures.log for failed URLs
 
-- **`validate_html.py`**: HTML integrity checker
+- **`validate_html.py`**: HTML integrity checker (BeautifulSoup-based)
   - `validate_html_files()`: Detects truncated/corrupt downloads (directory scan)
-  - `validate_html_string()`: Validates single HTML content string (used by pipeline)
-  - Checks for missing `</head>`, `<body>`, `</body>` tags and empty bodies
-  - Runs after wget pass 1, before post-processing; also after each replacement step
+  - `validate_html_string()`: Validates single HTML content string using BeautifulSoup
+  - Checks for missing `<head>`, `<body>` elements and empty bodies
+  - Runs after wget pass 1, before post-processing
 
 ### CLI
 
@@ -154,7 +157,9 @@ When fixing bugs:
 
 ## Dependencies
 
-- **Stdlib only**: No external runtime dependencies
+- **Runtime dependencies**:
+  - `beautifulsoup4>=4.12.0`: HTML parsing and DOM manipulation
+  - `lxml>=5.0.0`: Fast HTML parser for BeautifulSoup
 - **Dev dependencies**: `pytest`, `pytest-cov` (for testing)
 - **Binary**: `wget.exe` in `bin/` directory
 
@@ -242,49 +247,38 @@ The tool doesn't have a verbose flag, but you can:
 
 ## Replacement Pipeline & Safety
 
-### Unified Replacement Architecture
+### Unified Replacement Architecture (CSS-only)
 
-All regex and content replacements now go through `replacement_pipeline.py`:
+**HTML processing**: Uses BeautifulSoup DOM operations — safe by design, cannot corrupt HTML structure.
+
+**CSS processing**: All regex replacements go through `replacement_pipeline.py`:
 
 1. Each replacement is a `ReplacementStep` with name, pattern, and replacement
 2. Steps run sequentially; content validated after each change
 3. On validation failure: change reverted, logged to `logs/NNNNN/`, pipeline continues
 4. After all steps: final content written (only if modified)
 
+CSS operations include:
+- @import inlining (to avoid CORS on file://)
+- Absolute path conversion (url('/...') → url('../...'))
+- External URL stripping (url('https://...') → url('about:blank'))
+
 ### Log Directory Structure
 
-Failed replacements create:
+Failed CSS replacements create:
 ```
 <output_dir>/logs/
   00001/
-    index.html        # File content at point of failure
+    style.css         # File content at point of failure
     pattern.txt       # Step name, regex pattern, validation error
   00002/
-    style.css
+    theme.css
     pattern.txt
 ```
 
-This provides a debug trail for fixing problematic regexes without corrupting downloads.
+This provides a debug trail for fixing problematic regexes without corrupting CSS files.
 
-## Regex Pitfalls
-
-### Never use `[\s\S]*?` across `<script>` boundaries
-
-Patterns like `<script[^>]*>[\s\S]*?something[\s\S]*?</script>` will match from the **first** `<script>` tag that can reach `something` via `[\s\S]*?` — even if that means crossing intermediate `</script>` tags. This can delete entire page bodies.
-
-**Bad** (crosses `</script>` boundaries):
-```python
-r'<script[^>]*>[\s\S]*?google-analytics\.com[\s\S]*?</script>'
-```
-
-**Good** (stays within one script block using negative lookahead):
-```python
-r'<script[^>]*>(?:(?!</script>)[\s\S])*?google-analytics\.com(?:(?!</script>)[\s\S])*?</script>'
-```
-
-The `(?:(?!</script>)[\s\S])*?` construct matches any character (`[\s\S]`) but only after confirming the upcoming text is NOT `</script>`. This prevents the match from leaking into adjacent script blocks or page content.
-
-**Rule**: Any regex that matches `<script>...X...</script>` where X is content found inside script blocks MUST use the `(?:(?!</script>)[\s\S])*?` boundary guard instead of `[\s\S]*?`.
+Note: HTML replacements no longer create log entries since BeautifulSoup operations are inherently safe.
 
 ## Future Enhancements
 

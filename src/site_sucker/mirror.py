@@ -74,7 +74,7 @@ def invoke_site_mirror(
     validation_results = validate_html_files(output_dir)
     print_validation_results(validation_results)
 
-    # Create log directory for failed replacements
+    # Create log directory for failed replacements (CSS pipeline only)
     log_dir = output_dir / "logs"
 
     # ── PASS 2: External media with parallelism ────────────────────────────────
@@ -136,6 +136,6 @@ def invoke_site_mirror(
     repair_external_links(output_dir, media_dir, ext_urls, log_dir)
 
     # ── PASS 4: Strip online-only resources for offline browsing ────────────────
-    repair_offline_html(output_dir, log_dir)
+    repair_offline_html(output_dir)
 
     return failed_urls

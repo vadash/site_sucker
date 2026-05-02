@@ -2,10 +2,86 @@
 
 import re
 from pathlib import Path
-from urllib.parse import urlparse
 from typing import Any
+from urllib.parse import urlparse
+
+from bs4 import BeautifulSoup
 
 from site_sucker.replacement_pipeline import ReplacementStep, run_replacement_pipeline
+
+
+def _repair_html_links(
+    html_file: Path,
+    output_dir: Path,
+    media_dir: Path,
+    url_map: dict[str, str],
+) -> bool:
+    """Rewrite external URLs and strip CORS attributes in HTML file using BeautifulSoup.
+
+    Args:
+        html_file: Path to the HTML file.
+        output_dir: Root output directory.
+        media_dir: External media download directory.
+        url_map: Mapping of external URLs to local filenames.
+
+    Returns:
+        True if file was modified, False otherwise.
+    """
+    try:
+        with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read()
+    except (IOError, OSError):
+        return False
+
+    if not content:
+        return False
+
+    # Parse with BeautifulSoup
+    soup = BeautifulSoup(content, 'lxml')
+
+    # Calculate relative path depth from this file to output root
+    html_dir = html_file.parent
+    try:
+        rel_path = html_dir.resolve().relative_to(output_dir.resolve())
+        depth = len(rel_path.parts) if str(rel_path) != "." else 0
+    except ValueError:
+        # html_dir is not relative to output_dir (shouldn't happen)
+        depth = 0
+
+    modified = False
+
+    # Rewrite href and src attributes for mapped URLs
+    for tag in soup.find_all(['link', 'script', 'img']):
+        for attr in ('href', 'src'):
+            url = tag.get(attr)
+            if not url:
+                continue
+
+            # Check if this URL is in our map
+            for original_url, filename in url_map.items():
+                # Strip query string for comparison
+                url_base = url.split('?')[0]
+                if url_base == original_url or url == original_url:
+                    # Build relative path to images directory
+                    rel_link = "../" * depth + f"images/{filename}"
+                    tag[attr] = rel_link
+                    modified = True
+                    break
+
+    # Strip CORS-blocking attributes (integrity, crossorigin)
+    for tag in soup.find_all(['link', 'script', 'img']):
+        if tag.get('integrity'):
+            del tag['integrity']
+            modified = True
+        if tag.get('crossorigin'):
+            del tag['crossorigin']
+            modified = True
+
+    if modified:
+        with open(html_file, "w", encoding="utf-8", newline="") as f:
+            f.write(str(soup))
+
+    return modified
 
 
 def repair_external_links(
@@ -16,9 +92,8 @@ def repair_external_links(
 ) -> int:
     """Rewrite external CDN URLs in downloaded HTML to point to local copies.
 
-    Scans HTML files to replace absolute CDN URLs with relative paths to local files.
-    Strips crossorigin/integrity attributes to prevent local file:// CORS errors.
-    Also scans CSS files to convert absolute paths (url('/...')) to relative paths.
+    Uses BeautifulSoup for HTML files (URL rewriting + CORS attribute stripping).
+    Uses regex pipeline for CSS files (@import inlining, absolute path conversion, external URL stripping).
 
     Args:
         output_dir: Path to the directory containing downloaded files.
@@ -58,66 +133,17 @@ def repair_external_links(
     else:
         print(f"  Mapping {len(url_map)} external URLs to local files")
 
-    # ── PART 1: Process HTML Files ──────────────────────────────────────────
+    # ── PART 1: Process HTML Files (BeautifulSoup) ────────────────────────────
     html_files = list(output_dir.rglob("*.html")) + list(output_dir.rglob("*.htm"))
     modified_count = 0
 
     for html_file in html_files:
-        html_dir = html_file.parent
-        rel_path = html_dir.resolve().relative_to(output_dir.resolve())
-        depth = len(rel_path.parts) if str(rel_path) != "." else 0
-
-        # Build replacement steps for this specific file
-        html_steps = []
-
-        # Add URL rewriting steps for each mapped URL
-        for url, filename in url_map.items():
-            rel_link = "../" * depth + f"images/{filename}"
-            escaped_url = re.escape(url)
-            # Match exact URL (with optional querystring) strongly bounded by quotes
-            pattern_str = f'(["\']){escaped_url}(?:\\?[^\\s"\'#>]+)?\\1'
-            pattern = re.compile(pattern_str)
-
-            html_steps.append(
-                ReplacementStep(
-                    name=f"Rewrite external URL to local: {url[:50]}...",
-                    pattern=pattern,
-                    replacement=f'\\1{rel_link}\\1',
-                )
-            )
-
-        # Add CORS-stripping steps (always applied at the end)
-        html_steps.extend([
-            ReplacementStep(
-                name="Strip integrity attribute",
-                pattern=re.compile(r'(?i)\s+integrity=(["\']).*?\1'),
-                replacement='',
-            ),
-            ReplacementStep(
-                name="Strip crossorigin attribute with value",
-                pattern=re.compile(r'(?i)\s+crossorigin=(["\']).*?\1'),
-                replacement='',
-            ),
-            ReplacementStep(
-                name="Strip standalone crossorigin attribute",
-                pattern=re.compile(r'(?i)\s+crossorigin\b'),
-                replacement='',
-            ),
-        ])
-
-        # Run the replacement pipeline
-        steps_applied = run_replacement_pipeline(
-            html_file,
-            html_steps,
-            log_dir,
-        )
-
-        if steps_applied > 0:
+        if _repair_html_links(html_file, output_dir, media_dir, url_map):
             modified_count += 1
 
     print(f"  Rewrote external links in {modified_count} HTML file(s)")
 
-    # ── PART 2: Process CSS Files (Fix Absolute Paths, Inline @import, Strip External) ─────
+    # ── PART 2: Process CSS Files (Regex Pipeline) ─────────────────────────────
     css_files = list(output_dir.rglob("*.css"))
     css_modified_count = 0
     imports_inlined = 0
