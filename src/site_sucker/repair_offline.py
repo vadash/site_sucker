@@ -107,6 +107,25 @@ def repair_offline_html(output_dir: Path | str) -> int:
             modified = True
             original = raw
 
+        # Remove Google Analytics bootstrap script
+        # Pattern: (function(i,s,o,g,r,a,m){...})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+        # This can span multiple lines with various whitespace
+        ga_pattern = re.compile(
+            r'<script[^>]*>[\s\S]*?google-analytics\.com[\s\S]*?</script>',
+            flags=re.IGNORECASE
+        )
+        if ga_pattern.search(raw):
+            raw = ga_pattern.sub('', raw)
+            modified = True
+            original = raw
+
+        # Remove inline Google Analytics calls (ga('create', ...), ga('send', ...))
+        raw = re.sub(r"ga\(['\"]create['\"],\s*[^)]+\);?", '', raw)
+        raw = re.sub(r"ga\(['\"]send['\"],\s*[^)]+\);?", '', raw)
+        if raw != original:
+            modified = True
+            original = raw
+
         # Remove noscript tracking pixels
         raw = re.sub(
             r'<noscript>\s*<img[^>]*(?:matomo|analytics|doubleclick|google-analytics)[^>]*/?>\s*</noscript>',
@@ -120,6 +139,48 @@ def repair_offline_html(output_dir: Path | str) -> int:
         raw = re.sub(r'\.push\(\s*\[?\s*(")trackPageView(").*?\);?', '', raw)
         raw = re.sub(r'\.push\(\s*\[?\s*(")enableLinkTracking(").*?\);?', '', raw)
         if raw != original:
+            modified = True
+            original = raw
+
+        # Remove FontAwesome CDN loader script (9a832b96e0.js and similar)
+        # This script tries to load use.fontawesome.com causing timeouts
+        fa_loader_pattern = re.compile(
+            r'<script[^>]*src=["\'].*?9a832b96e0\.js["\'][^>]*>.*?</script>',
+            flags=re.DOTALL
+        )
+        if fa_loader_pattern.search(raw):
+            raw = fa_loader_pattern.sub('', raw)
+            modified = True
+            original = raw
+
+        # Remove FontAwesome CDN link tags
+        fa_link_pattern = re.compile(
+            r'<link[^>]*href=["\']https://use\.fontawesome\.com/[^"\']+["\'][^>]*/?>',
+            flags=re.IGNORECASE
+        )
+        if fa_link_pattern.search(raw):
+            raw = fa_link_pattern.sub('', raw)
+            modified = True
+            original = raw
+
+        # Remove window.FontAwesomeCdnConfig and related FA loader code
+        # First, try the complex pattern (config + function)
+        fa_config_pattern = re.compile(
+            r'window\.FontAwesomeCdnConfig\s*=\s*\{.*?\};.*?function\s*\([^)]*\)[^{]*\{.*?\}\s*\([\s\S]*?\);',
+            flags=re.DOTALL
+        )
+        if fa_config_pattern.search(raw):
+            raw = fa_config_pattern.sub('', raw)
+            modified = True
+            original = raw
+
+        # Also handle simple config assignments (window.FontAwesomeCdnConfig = {...};)
+        fa_config_simple = re.compile(
+            r'window\.FontAwesomeCdnConfig\s*=\s*\{.*?\};',
+            flags=re.DOTALL
+        )
+        if fa_config_simple.search(raw):
+            raw = fa_config_simple.sub('', raw)
             modified = True
             original = raw
 

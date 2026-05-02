@@ -11,9 +11,9 @@ def get_external_media(
     target_domain: str,
     settings: dict[str, Any],
 ) -> set[str]:
-    """Scan downloaded HTML for external media URLs.
+    """Scan downloaded HTML and CSS for external media URLs.
 
-    Parses all HTML files in the output directory to find external media URLs
+    Parses all HTML and CSS files in the output directory to find external media URLs
     (images, videos, CSS, JS, fonts) that are hosted on different domains.
     Performs deduplication and URL normalization.
 
@@ -26,12 +26,15 @@ def get_external_media(
         Set of unique external media URLs.
     """
     output_dir = Path(output_dir)
-    print(f"\n[2/2] Collecting external media from downloaded HTML...")
+    print(f"\n[2/2] Collecting external media from downloaded HTML and CSS...")
 
     ext_urls = set()
 
     # Regex to find href/src attributes
     href_src_pattern = re.compile(r'(?:href|src)=["\'](https?://[^"\'#]+)["\']')
+
+    # Regex to find url() references in CSS (including quotes and without)
+    css_url_pattern = re.compile(r'url\(\s*["\']?(https?://[^"\'\\)]+)["\']?\s*\)')
 
     # Build media extension regex
     extensions = settings.get("MediaExtensions", [])
@@ -40,7 +43,9 @@ def get_external_media(
 
     url_count = 0
     html_files = list(output_dir.rglob("*.html")) + list(output_dir.rglob("*.htm"))
+    css_files = list(output_dir.rglob("*.css"))
 
+    # ── PART 1: Scan HTML files ────────────────────────────────────────────────
     for html_file in html_files:
         try:
             with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
@@ -75,5 +80,38 @@ def get_external_media(
             normalized_url = url.split("?")[0]
             ext_urls.add(normalized_url)
 
-    print(f"Scanned {url_count} URLs, found {len(ext_urls)} unique external media URLs")
+    # ── PART 2: Scan CSS files for url() references ─────────────────────────────
+    css_url_count = 0
+    for css_file in css_files:
+        try:
+            with open(css_file, "r", encoding="utf-8", errors="ignore") as f:
+                raw_css = f.read()
+        except IOError:
+            continue
+
+        if not raw_css:
+            continue
+
+        for match in css_url_pattern.finditer(raw_css):
+            css_url_count += 1
+            url = match.group(1)
+
+            # Skip URLs from the target domain
+            try:
+                url_host = urlparse(url).hostname or ""
+                if url_host == target_domain:
+                    continue
+            except Exception:
+                continue
+
+            # Skip non-media URLs
+            if not media_regex.search(url):
+                continue
+
+            # Normalize URL: strip query string for deduplication
+            normalized_url = url.split("?")[0]
+            ext_urls.add(normalized_url)
+
+    total_scanned = url_count + css_url_count
+    print(f"Scanned {url_count} HTML URLs and {css_url_count} CSS url() references, found {len(ext_urls)} unique external media URLs")
     return ext_urls

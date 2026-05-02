@@ -104,3 +104,80 @@ def test_get_external_media_multiple_files(tmp_path: Path, sample_settings: dict
     assert "https://cdn.example.com/image1.png" in ext_urls
     assert "https://cdn.example.com/image2.png" in ext_urls
     assert "https://cdn.example.com/image3.png" in ext_urls
+
+
+def test_get_external_media_from_css_url(tmp_path: Path, sample_settings: dict):
+    """Test extracting media URLs from CSS url() references."""
+    # Add .webp and .svg to extensions for this test
+    sample_settings["MediaExtensions"] = [".png", ".jpg", ".css", ".webp", ".svg"]
+
+    # Create a CSS file with url() references
+    css_file = tmp_path / "styles" / "test.css"
+    css_file.parent.mkdir(parents=True, exist_ok=True)
+    css_content = '''
+body {
+    background: url(https://cdn.example.com/images/bg.webp);
+}
+.logo {
+    background-image: url("https://cdn.example.com/images/logo.png");
+}
+.icon {
+    background: url('https://cdn.example.com/icon.svg');
+}
+.local {
+    background: url(/local/image.png);
+}
+'''
+    css_file.write_text(css_content)
+
+    # Also create an HTML file
+    html_file = tmp_path / "test.html"
+    html_file.write_text('<link rel="stylesheet" href="styles/test.css">')
+
+    ext_urls = media.get_external_media(tmp_path, "example.com", sample_settings)
+
+    # Should find the 3 external URLs from CSS, not the local one
+    assert len(ext_urls) == 3
+    assert "https://cdn.example.com/images/bg.webp" in ext_urls
+    assert "https://cdn.example.com/images/logo.png" in ext_urls
+    assert "https://cdn.example.com/icon.svg" in ext_urls
+
+
+def test_get_external_media_from_css_and_html(tmp_path: Path, sample_settings: dict):
+    """Test scanning both HTML and CSS for media URLs."""
+    css_file = tmp_path / "styles" / "main.css"
+    css_file.parent.mkdir(parents=True, exist_ok=True)
+    css_file.write_text('background: url(https://cdn.example.com/css-bg.jpg);')
+
+    html_file = tmp_path / "test.html"
+    html_file.write_text(
+        '<link rel="stylesheet" href="styles/main.css">\n'
+        '<img src="https://cdn.example.com/html-img.png">'
+    )
+
+    ext_urls = media.get_external_media(tmp_path, "example.com", sample_settings)
+
+    # Should find both HTML and CSS external URLs
+    assert len(ext_urls) == 2
+    assert "https://cdn.example.com/css-bg.jpg" in ext_urls
+    assert "https://cdn.example.com/html-img.png" in ext_urls
+
+
+def test_get_external_media_css_with_quotes_variations(tmp_path: Path, sample_settings: dict):
+    """Test CSS url() with various quote styles."""
+    sample_settings["MediaExtensions"] = [".png", ".jpg", ".webp"]
+
+    css_file = tmp_path / "styles.css"
+    css_content = '''
+.bg1 { background: url(https://cdn.example.com/img1.webp); }
+.bg2 { background: url("https://cdn.example.com/img2.webp"); }
+.bg3 { background: url('https://cdn.example.com/img3.webp'); }
+'''
+    css_file.write_text(css_content)
+
+    ext_urls = media.get_external_media(tmp_path, "example.com", sample_settings)
+
+    assert len(ext_urls) == 3
+    assert "https://cdn.example.com/img1.webp" in ext_urls
+    assert "https://cdn.example.com/img2.webp" in ext_urls
+    assert "https://cdn.example.com/img3.webp" in ext_urls

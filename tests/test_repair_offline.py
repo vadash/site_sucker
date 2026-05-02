@@ -138,3 +138,102 @@ def test_repair_offline_html_multiple_files(tmp_path: Path):
     result = repair_offline.repair_offline_html(tmp_path)
 
     assert result == 3
+
+
+def test_repair_offline_html_removes_fontawesome_loader(tmp_path: Path):
+    """Test removal of FontAwesome CDN loader script."""
+    html_file = tmp_path / "test.html"
+    original_html = '''<html>
+<head>
+    <script src='images/9a832b96e0.js'></script>
+    <link rel="stylesheet" href="https://use.fontawesome.com/9a832b96e0.css">
+</head>
+</html>'''
+    html_file.write_text(original_html)
+
+    result = repair_offline.repair_offline_html(tmp_path)
+
+    assert result == 1
+
+    updated_content = html_file.read_text()
+    # FontAwesome loader script should be removed
+    assert "9a832b96e0.js" not in updated_content
+    # External FA CSS link should be removed (no crossorigin attribute in this case)
+    assert "use.fontawesome.com" not in updated_content
+
+
+def test_repair_offline_html_removes_fontawesome_config(tmp_path: Path):
+    """Test removal of window.FontAwesomeCdnConfig."""
+    html_file = tmp_path / "test.html"
+    original_html = '''<html>
+<head>
+    <script>
+    window.FontAwesomeCdnConfig = {
+        autoA11y: { enabled: true },
+        useUrl: "use.fontawesome.com"
+    };
+    </script>
+</head>
+</html>'''
+    html_file.write_text(original_html)
+
+    result = repair_offline.repair_offline_html(tmp_path)
+
+    assert result == 1
+
+    updated_content = html_file.read_text()
+    assert "FontAwesomeCdnConfig" not in updated_content
+
+
+def test_repair_offline_html_removes_google_analytics(tmp_path: Path):
+    """Test removal of Google Analytics bootstrap script."""
+    html_file = tmp_path / "test.html"
+    original_html = '''<html>
+<head>
+    <script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');</script>
+    <script>ga('create', 'UA-12345', 'auto');</script>
+    <script>ga('send', 'pageview');</script>
+</head>
+</html>'''
+    html_file.write_text(original_html)
+
+    result = repair_offline.repair_offline_html(tmp_path)
+
+    assert result == 1
+
+    updated_content = html_file.read_text()
+    # GA bootstrap should be removed
+    assert "GoogleAnalyticsObject" not in updated_content
+    assert "google-analytics.com/analytics.js" not in updated_content
+    # GA calls should be removed
+    assert "ga('create'" not in updated_content
+    assert "ga('send'" not in updated_content
+
+
+def test_repair_offline_html_removes_mixed_tracking(tmp_path: Path):
+    """Test removal of both Matomo and Google Analytics."""
+    html_file = tmp_path / "test.html"
+    original_html = '''<html>
+<head>
+    <script>
+        var _paq = window._paq || [];
+        _paq.push(['trackPageView']);
+    </script>
+    <script>(function(i,s,o,g,r,a,m){...})
+    ('window,document,'script','//www.google-analytics.com/analytics.js','ga');</script>
+    <script src='images/9a832b96e0.js'></script>
+</head>
+</html>'''
+    html_file.write_text(original_html)
+
+    result = repair_offline.repair_offline_html(tmp_path)
+
+    assert result == 1
+
+    updated_content = html_file.read_text()
+    assert "_paq" not in updated_content
+    assert "google-analytics.com" not in updated_content
+    assert "9a832b96e0.js" not in updated_content

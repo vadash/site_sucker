@@ -123,3 +123,109 @@ def test_repair_external_links_nested_directories(tmp_path: Path):
     updated_content = html_file.read_text()
     # Should go up 3 levels then into images
     assert "../../../images/image.png" in updated_content
+
+
+def test_repair_external_links_css_import_inlining(tmp_path: Path, capsys):
+    """Test CSS @import inlining to avoid CORS."""
+    styles_dir = tmp_path / "styles"
+    styles_dir.mkdir()
+
+    # Create imported CSS file
+    imported_css = styles_dir / "colors.css"
+    imported_css.write_text("body { color: red; }")
+
+    # Create main CSS with @import
+    main_css = styles_dir / "main.css"
+    main_css.write_text('@import url("colors.css");\nbody { margin: 0; }')
+
+    # No external URLs, just process CSS
+    repair_links.repair_external_links(tmp_path, tmp_path / "images", set())
+
+    # Check that @import was inlined
+    updated_main = main_css.read_text()
+    assert "@import" not in updated_main
+    assert "body { color: red; }" in updated_main
+    assert "/* Inlined from colors.css */" in updated_main
+
+
+def test_repair_external_links_css_import_not_found(tmp_path: Path):
+    """Test CSS @import with missing file is handled gracefully."""
+    styles_dir = tmp_path / "styles"
+    styles_dir.mkdir()
+
+    main_css = styles_dir / "main.css"
+    main_css.write_text('@import url("missing.css");\nbody { margin: 0; }')
+
+    repair_links.repair_external_links(tmp_path, tmp_path / "images", set())
+
+    updated_main = main_css.read_text()
+    # Should leave a comment about missing file
+    assert "/* @import \"missing.css\" - FILE NOT FOUND */" in updated_main
+
+
+def test_repair_external_links_css_import_external_stripped(tmp_path: Path):
+    """Test external CSS @import (http/https) is stripped."""
+    styles_dir = tmp_path / "styles"
+    styles_dir.mkdir()
+
+    main_css = styles_dir / "main.css"
+    main_css.write_text(
+        '@import url("https://fonts.googleapis.com/css?family=Test");\n'
+        '@import url("colors.css");\n'
+        'body { margin: 0; }'
+    )
+
+    # Create local import
+    (styles_dir / "colors.css").write_text("body { color: red; }")
+
+    repair_links.repair_external_links(tmp_path, tmp_path / "images", set())
+
+    updated_main = main_css.read_text()
+    # External @import should be stripped
+    assert "fonts.googleapis.com" not in updated_main
+    # Local @import should be inlined
+    assert "body { color: red; }" in updated_main
+
+
+def test_repair_external_links_css_strip_google_fonts(tmp_path: Path, capsys):
+    """Test Google Fonts @import stripping."""
+    styles_dir = tmp_path / "styles"
+    styles_dir.mkdir()
+
+    main_css = styles_dir / "main.css"
+    main_css.write_text(
+        '@import url("https://fonts.googleapis.com/css?family=Source+Sans+Pro");\n'
+        'body { font-family: Arial; }'
+    )
+
+    repair_links.repair_external_links(tmp_path, tmp_path / "images", set())
+
+    updated_main = main_css.read_text()
+    # Google Fonts import should be removed
+    assert "fonts.googleapis.com" not in updated_main
+    assert "Google Fonts @import stripped" in updated_main
+
+    captured = capsys.readouterr()
+    assert "Stripped 1 external font @import" in captured.out
+
+
+def test_repair_external_links_css_strip_external_url(tmp_path: Path, capsys):
+    """Test external url() in CSS is neutralized."""
+    styles_dir = tmp_path / "styles"
+    styles_dir.mkdir()
+
+    main_css = styles_dir / "main.css"
+    main_css.write_text(
+        '.logo { background: url("https://www.median-xl.com/styles/img/logo.png"); }\n'
+        'body { margin: 0; }'
+    )
+
+    repair_links.repair_external_links(tmp_path, tmp_path / "images", set())
+
+    updated_main = main_css.read_text()
+    # External URL should be replaced with about:blank
+    assert "about:blank" in updated_main
+    assert "External URL stripped" in updated_main
+
+    captured = capsys.readouterr()
+    assert "Neutralized 1 external url() reference" in captured.out

@@ -97,9 +97,12 @@ def repair_external_links(
 
     print(f"  Rewrote external links in {modified_count} HTML file(s)")
 
-    # ── PART 2: Process CSS Files (Fix Absolute Paths) ──────────────────────
+    # ── PART 2: Process CSS Files (Fix Absolute Paths, Inline @import, Strip External) ─────
     css_files = list(output_dir.rglob("*.css"))
     css_modified_count = 0
+    imports_inlined = 0
+    external_fonts_stripped = 0
+    external_urls_stripped = 0
 
     # Always process CSS files for absolute path conversion
     for css_file in css_files:
@@ -116,7 +119,60 @@ def repair_external_links(
         modified_css = False
         css_dir = css_file.parent
 
-        # 1. Replace mapped external CDN urls inside CSS (e.g. Google Fonts)
+        # 1. Inline CSS @import statements to avoid CORS on file://
+        # Match: @import url("path.css"); @import 'path.css'; @import "path.css";
+        import_pattern = re.compile(r'@import\s+(?:url\(\s*)?["\']([^"\']+)["\'](?:\s*\))?;')
+
+        def inline_import(match: re.Match) -> str:
+            nonlocal modified_css, imports_inlined
+            import_path = match.group(1)
+
+            # Skip external @import (http/https) - these will be stripped separately
+            # Return a marker comment so google_fonts_pattern can find it
+            if import_path.startswith(('http://', 'https://')):
+                modified_css = True
+                return f'/* External @import "{import_path}" stripped for offline use */'
+
+            # Resolve relative import path
+            try:
+                # Import path is relative to the CSS file
+                import_file = css_dir / import_path
+
+                if import_file.is_file():
+                    try:
+                        with open(import_file, "r", encoding="utf-8", errors="ignore") as f:
+                            imported_content = f.read()
+
+                        imports_inlined += 1
+                        modified_css = True
+                        return f'/* Inlined from {import_path} */\n{imported_content}\n'
+                    except (IOError, OSError) as e:
+                        # File exists but can't be read
+                        return f'/* @import "{import_path}" - READ ERROR: {e} */\n'
+                else:
+                    # Import file not found - leave warning comment
+                    modified_css = True
+                    return f'/* @import "{import_path}" - FILE NOT FOUND */\n'
+            except (ValueError, TypeError) as e:
+                # Path construction error
+                modified_css = True
+                return f'/* @import "{import_path}" - PATH ERROR: {e} */\n'
+            except Exception:
+                # Any other error - leave original to be safe
+                return match.group(0)
+
+        raw_css = import_pattern.sub(inline_import, raw_css)
+
+        # 2. Strip Google Fonts @import (e.g., @import url("https://fonts.googleapis.com/..."))
+        # Note: This runs AFTER inline_import, which already left a comment marker
+        # We now replace those marker comments with a standard message
+        google_fonts_comment_pattern = re.compile(r'/\* External @import "https://fonts\.googleapis\.com/[^"]+" stripped for offline use \*/')
+        if google_fonts_comment_pattern.search(raw_css):
+            raw_css = google_fonts_comment_pattern.sub('/* Google Fonts @import stripped for offline use */', raw_css)
+            external_fonts_stripped += 1
+            modified_css = True
+
+        # 3. Replace mapped external CDN urls inside CSS (e.g. Google Fonts)
         for url, filename in url_map.items():
             local_path = media_dir / filename
             rel_path = Path(css_dir).relative_to(output_dir)
@@ -130,7 +186,15 @@ def repair_external_links(
                 raw_css = re.sub(pattern, f'url(\\1?{rel_link}\\1?)', raw_css)
                 modified_css = True
 
-        # 2. Convert absolute local paths to relative paths
+        # 4. Strip external http/https url() references that weren't downloaded
+        # These cause timeouts when opening HTML locally
+        external_url_pattern = re.compile(r'url\(\s*["\']?https?://[^"\'\\)]+["\']?\s*\)')
+        if external_url_pattern.search(raw_css):
+            raw_css = external_url_pattern.sub('url("about:blank") /* External URL stripped for offline use */', raw_css)
+            external_urls_stripped += 1
+            modified_css = True
+
+        # 5. Convert absolute local paths to relative paths
         rel_from_root = Path(css_dir).relative_to(output_dir)
         depth = len(rel_from_root.parts) if str(rel_from_root) != "." else 0
         prefix = "../" * depth
@@ -147,6 +211,12 @@ def repair_external_links(
             css_modified_count += 1
 
     if css_modified_count > 0:
-        print(f"  Rewrote paths in {css_modified_count} CSS file(s)")
+        print(f"  Processed {css_modified_count} CSS file(s)")
+        if imports_inlined > 0:
+            print(f"    - Inlined {imports_inlined} @import statement(s)")
+        if external_fonts_stripped > 0:
+            print(f"    - Stripped {external_fonts_stripped} external font @import(s)")
+        if external_urls_stripped > 0:
+            print(f"    - Neutralized {external_urls_stripped} external url() reference(s)")
 
     return modified_count
