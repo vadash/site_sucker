@@ -108,10 +108,11 @@ def repair_offline_html(output_dir: Path | str) -> int:
             original = raw
 
         # Remove Google Analytics bootstrap script
-        # Pattern: (function(i,s,o,g,r,a,m){...})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-        # This can span multiple lines with various whitespace
+        # Two cases: external <script src="...google-analytics.com..."> or inline with GA code.
+        # IMPORTANT: Must NOT cross </script> boundaries — use negated char class [^<] to
+        # stay within a single script block and avoid eating the entire page body.
         ga_pattern = re.compile(
-            r'<script[^>]*>[\s\S]*?google-analytics\.com[\s\S]*?</script>',
+            r'<script[^>]*(?:src=["\'][^"\']*google-analytics\.com[^"\']*["\'])?[^>]*>(?:(?!</script>)[\s\S])*?google-analytics\.com(?:(?!</script>)[\s\S])*?</script>',
             flags=re.IGNORECASE
         )
         if ga_pattern.search(raw):
