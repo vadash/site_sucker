@@ -1,0 +1,106 @@
+"""Tests for media module."""
+
+from pathlib import Path
+
+import pytest
+
+from site_sucker import media
+
+
+def test_get_external_media_basic(tmp_path: Path, sample_settings: dict):
+    """Test basic external media extraction."""
+    # Create sample HTML file
+    html_file = tmp_path / "test.html"
+    html_content = '''<html>
+<body>
+    <img src="https://cdn.example.com/image.png">
+    <img src="https://cdn.example.com/photo.jpg?timestamp=123">
+    <img src="/local/image.png">
+</body>
+</html>'''
+    html_file.write_text(html_content)
+
+    ext_urls = media.get_external_media(tmp_path, "example.com", sample_settings)
+
+    assert len(ext_urls) == 2
+    assert "https://cdn.example.com/image.png" in ext_urls
+    assert "https://cdn.example.com/photo.jpg" in ext_urls  # Query stripped
+
+
+def test_get_external_media_dedup(tmp_path: Path, sample_settings: dict):
+    """Test URL deduplication."""
+    html_file = tmp_path / "test.html"
+    html_content = '''<html>
+<body>
+    <img src="https://cdn.example.com/image.png">
+    <img src="https://cdn.example.com/image.png?v=1">
+    <img src="https://cdn.example.com/image.png?v=2">
+</body>
+</html>'''
+    html_file.write_text(html_content)
+
+    ext_urls = media.get_external_media(tmp_path, "example.com", sample_settings)
+
+    # Should deduplicate to single URL
+    assert len(ext_urls) == 1
+    assert "https://cdn.example.com/image.png" in ext_urls
+
+
+def test_get_external_media_filters_target_domain(tmp_path: Path, sample_settings: dict):
+    """Test that target domain URLs are filtered out."""
+    html_file = tmp_path / "test.html"
+    html_content = '''<html>
+<body>
+    <img src="https://example.com/image.png">
+    <img src="https://cdn.example.com/photo.jpg">
+</body>
+</html>'''
+    html_file.write_text(html_content)
+
+    ext_urls = media.get_external_media(tmp_path, "example.com", sample_settings)
+
+    # Should only include external CDN, not target domain
+    assert len(ext_urls) == 1
+    assert "https://cdn.example.com/photo.jpg" in ext_urls
+    assert "https://example.com/image.png" not in ext_urls
+
+
+def test_get_external_media_filters_extensions(tmp_path: Path, sample_settings: dict):
+    """Test that only media extensions are included."""
+    sample_settings["MediaExtensions"] = [".png", ".jpg"]
+
+    html_file = tmp_path / "test.html"
+    html_content = '''<html>
+<body>
+    <img src="https://cdn.example.com/image.png">
+    <a href="https://cdn.example.com/page.html">Link</a>
+    <script src="https://cdn.example.com/script.js"></script>
+</body>
+</html>'''
+    html_file.write_text(html_content)
+
+    ext_urls = media.get_external_media(tmp_path, "example.com", sample_settings)
+
+    # Should only include PNG, not HTML or JS
+    assert len(ext_urls) == 1
+    assert "https://cdn.example.com/image.png" in ext_urls
+
+
+def test_get_external_media_multiple_files(tmp_path: Path, sample_settings: dict):
+    """Test scanning multiple HTML files."""
+    (tmp_path / "page1.html").write_text(
+        '<img src="https://cdn.example.com/image1.png">'
+    )
+    (tmp_path / "page2.html").write_text(
+        '<img src="https://cdn.example.com/image2.png">'
+    )
+    (tmp_path / "page3.htm").write_text(
+        '<img src="https://cdn.example.com/image3.png">'
+    )
+
+    ext_urls = media.get_external_media(tmp_path, "example.com", sample_settings)
+
+    assert len(ext_urls) == 3
+    assert "https://cdn.example.com/image1.png" in ext_urls
+    assert "https://cdn.example.com/image2.png" in ext_urls
+    assert "https://cdn.example.com/image3.png" in ext_urls
