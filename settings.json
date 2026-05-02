@@ -5,7 +5,7 @@
   "Retries": 3,
   "MaxDepth": 0,
   "OutputRoot": "./downloads",
-  "WaitBetweenRequests": 0.5,
+  "WaitBetweenRequests": 1.5,
   "ParallelDownloads": 2,
   "_rejectPatternsNotes": "Patterns are matched as substrings in URLs. Forum-specific patterns skip user-generated noise.",
   "RejectPatterns": [
