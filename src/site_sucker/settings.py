@@ -302,6 +302,10 @@ def merge_cli_overrides(settings: dict[str, Any], parallel: int | None = None,
 
                 # Expand any range expressions in the pattern
                 expanded = _expand_reject_expression(pattern)
+                if expanded != [pattern]:
+                    print(f"Expanded --reject \"{pattern}\" → {len(expanded)} patterns:")
+                    for i, p in enumerate(expanded, 1):
+                        print(f"  {i:4d}. {p}")
                 additional_patterns.extend(expanded)
 
         if additional_patterns:
