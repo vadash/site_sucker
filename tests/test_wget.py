@@ -7,65 +7,56 @@ import pytest
 from site_sucker import wget
 
 
-def test_get_wget_path_exists(sample_settings: dict, monkeypatch):
+def test_get_wget_path_exists(sample_settings: dict, tmp_path: Path):
     """Test get_wget_path when wget.exe exists."""
-    # Mock the bin directory structure
-    mock_path = Path("/fake/project/bin/wget.exe")
+    # Create a temporary bin directory with wget.exe
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    wget_exe = bin_dir / "wget.exe"
+    wget_exe.touch()
 
-    def mock_resolve():
-        return Path("/fake/project")
+    # Temporarily change to the temp directory structure
+    # We need to mock the __file__ path resolution
+    # Since this is complex, we'll just test that the function works
+    # when called from the actual project structure
+    import site_sucker.wget as wget_module
+    original_file = wget_module.__file__
 
-    monkeypatch.setattr(wget.Path, "__file__", "/fake/project/src/site_sucker/wget.py")
+    try:
+        # Point to our temp directory
+        fake_module_path = tmp_path / "src" / "site_sucker" / "wget.py"
+        fake_module_path.parent.mkdir(parents=True, exist_ok=True)
+        fake_module_path.touch()
 
-    # Create a temporary wget.exe
-    bin_dir = Path("/fake/project/bin")
-    bin_dir.mkdir(parents=True, exist_ok=True)
-    mock_path.touch()
+        wget_module.__file__ = str(fake_module_path)
 
-    # We need to mock the path resolution from __file__
-    # This is tricky with the real module, so we'll test the logic differently
-    # For now, let's just test that FileNotFoundError is raised when not found
-
-    # Clean up
-    mock_path.unlink()
-    bin_dir.rmdir()
+        result = wget.get_wget_path()
+        assert result == wget_exe
+    finally:
+        wget_module.__file__ = original_file
 
 
-def test_get_wget_path_not_found(monkeypatch):
+def test_get_wget_path_not_found(tmp_path: Path):
     """Test get_wget_path when wget.exe doesn't exist."""
-    # Make sure we're looking in a non-existent location
-    def mock_parent():
-        return Path("/nonexistent/path")
+    import site_sucker.wget as wget_module
+    original_file = wget_module.__file__
 
-    # This should raise FileNotFoundError
-    with pytest.raises(FileNotFoundError, match="wget.exe not found"):
-        # Force the function to look in a non-existent location
-        # by monkeypatching the Path operations
-        original_cwd = Path.cwd()
+    try:
+        # Create a directory structure without wget.exe
+        fake_module_path = tmp_path / "src" / "site_sucker" / "wget.py"
+        fake_module_path.parent.mkdir(parents=True, exist_ok=True)
+        fake_module_path.touch()
 
-        class MockPath:
-            def __init__(self, *args, **kwargs):
-                if args and str(args[0]).endswith("wget.py"):
-                    self._path = Path("/nonexistent/src/site_sucker/wget.py")
-                else:
-                    self._path = Path(*args, **kwargs)
+        # Create bin directory but no wget.exe
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
 
-            def __truediv__(self, other):
-                return MockPath(self._path / other)
+        wget_module.__file__ = str(fake_module_path)
 
-            def __getattr__(self, name):
-                return getattr(self._path, name)
-
-            def __eq__(self, other):
-                return self._path == other
-
-        try:
-            # Since we can't easily mock all the Path operations,
-            # we'll just test the error message by calling it
-            # and expecting it to fail in a fresh directory
-            raise FileNotFoundError("wget.exe not found at: test")
-        except FileNotFoundError as e:
-            assert "wget.exe not found" in str(e)
+        with pytest.raises(FileNotFoundError, match="wget.exe not found"):
+            wget.get_wget_path()
+    finally:
+        wget_module.__file__ = original_file
 
 
 def test_build_wget_args_basic(sample_settings: dict):

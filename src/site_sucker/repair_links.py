@@ -30,7 +30,7 @@ def repair_external_links(
 
     if not external_urls:
         print("No external URLs to rewrite.")
-        return 0
+        # Don't return early - we still need to process CSS for absolute paths
 
     print(f"\n[3/4] Rewriting external URLs to local paths...")
 
@@ -48,10 +48,10 @@ def repair_external_links(
             pass
 
     if not url_map:
-        print("No downloaded external files found on disk. Nothing to rewrite.")
-        return 0
-
-    print(f"  Mapping {len(url_map)} external URLs to local files")
+        print("No downloaded external files found on disk.")
+        # Continue to process CSS for absolute paths even if no external URLs
+    else:
+        print(f"  Mapping {len(url_map)} external URLs to local files")
 
     # ── PART 1: Process HTML Files ──────────────────────────────────────────
     html_files = list(output_dir.rglob("*.html")) + list(output_dir.rglob("*.htm"))
@@ -101,6 +101,7 @@ def repair_external_links(
     css_files = list(output_dir.rglob("*.css"))
     css_modified_count = 0
 
+    # Always process CSS files for absolute path conversion
     for css_file in css_files:
         try:
             with open(css_file, "r", encoding="utf-8", errors="ignore") as f:
@@ -111,6 +112,7 @@ def repair_external_links(
         if not raw_css:
             continue
 
+        original_css = raw_css
         modified_css = False
         css_dir = css_file.parent
 
@@ -134,7 +136,7 @@ def repair_external_links(
         prefix = "../" * depth
 
         # Regex match url('/path...') avoiding protocol-relative //paths
-        abs_url_pattern = r'url\(\s*(["\']?)/([^/"\'][^\)"\']*)\1\s*\)'
+        abs_url_pattern = r'url\(\s*(["\']?)/([^"\'\)]*)\1\s*\)'
         if re.search(abs_url_pattern, raw_css):
             raw_css = re.sub(abs_url_pattern, f'url(\\1{prefix}\\2\\1)', raw_css)
             modified_css = True

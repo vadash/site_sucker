@@ -3,6 +3,7 @@
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 
 def get_external_media(
@@ -55,7 +56,15 @@ def get_external_media(
             url = match.group(1)
 
             # Skip URLs from the target domain
-            if target_domain in url:
+            # Only skip if hostname exactly matches target domain
+            # e.g., example.com matches example.com
+            # but cdn.example.com does NOT match example.com (different domain)
+            try:
+                url_host = urlparse(url).hostname or ""
+                if url_host == target_domain:
+                    continue
+            except Exception:
+                # If we can't parse the URL, skip it
                 continue
 
             # Skip non-media URLs
