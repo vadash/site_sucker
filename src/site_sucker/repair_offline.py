@@ -6,20 +6,6 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 
 
-FALLBACK_STYLE = '''
-
-<style>
-/* Minimal fallback CSS for offline browsing */
-body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; }
-#content { max-width: 960px; margin: 0 auto; padding: 20px; }
-h1, h2, h3 { margin-top: 1.5em; }
-a { color: #0645ad; text-decoration: none; }
-a:hover { text-decoration: underline; }
-.mw-body-content { padding: 1em; }
-</style>
-'''
-
-
 def _remove_dom_nodes(soup: BeautifulSoup) -> int:
     """Remove unwanted DOM nodes using BeautifulSoup.
 
@@ -177,22 +163,30 @@ def repair_offline_html(output_dir: Path | str) -> int:
         # Parse with BeautifulSoup using lxml parser
         soup = BeautifulSoup(content, 'lxml')
 
-        # Remove unwanted DOM nodes
+        # 1. Remove unwanted DOM nodes
         removed = _remove_dom_nodes(soup)
 
-        # Serialize back to string
+        # 2. Inject fallback CSS before </head> (DOM operation, before serializing)
+        if soup.head:
+            style_tag = soup.new_tag('style')
+            style_tag.string = (
+                "/* Minimal fallback CSS for offline browsing */\n"
+                "body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; }\n"
+                "#content { max-width: 960px; margin: 0 auto; padding: 20px; }\n"
+                "h1, h2, h3 { margin-top: 1.5em; }\n"
+                "a { color: #0645ad; text-decoration: none; }\n"
+                "a:hover { text-decoration: underline; }\n"
+                ".mw-body-content { padding: 1em; }"
+            )
+            soup.head.append(style_tag)
+
+        # 3. Serialize to string once
         cleaned_content = str(soup)
 
-        # Clean inline JavaScript (regex is appropriate for string-level ops)
+        # 4. Clean inline JavaScript (regex is appropriate for string-level ops)
         cleaned_content = _clean_inline_javascript(cleaned_content)
 
-        # Inject fallback CSS before </head>
-        if soup.head:
-            fallback_tag = BeautifulSoup(FALLBACK_STYLE, 'lxml')
-            soup.head.append(fallback_tag)
-            cleaned_content = str(soup)
-
-        # Only write if content changed
+        # 5. Only write if content changed
         if removed > 0 or cleaned_content != content:
             with open(html_file, "w", encoding="utf-8", newline="") as f:
                 f.write(cleaned_content)
