@@ -53,7 +53,8 @@ SiteSucker is a modular Python application that mirrors websites for offline use
 ### Configuration & Reporting
 
 - **`settings.py`**: Configuration management
-  - `load_settings()`: Loads and merges settings.json
+  - `load_settings()`: Loads and merges settings.jsonc (with fallback to settings.json)
+  - `_strip_jsonc_comments()`: Removes `//` and `/* */` comments from JSONC files
   - `merge_cli_overrides()`: Applies CLI parameter overrides
 
 - **`report.py`**: Report generation
@@ -106,7 +107,7 @@ pytest tests/test_media.py
 
 When adding new reject patterns or URL handling:
 
-1. Update `settings.json` with the pattern
+1. Update `settings.jsonc` with the pattern (add inline comment explaining what it does)
 2. Add test case to `test_wget.py` (for arg building)
 3. Add test case to relevant module (`test_media.py`, `test_repair_offline.py`)
 
@@ -176,20 +177,39 @@ When fixing bugs:
 
 ## Settings File Schema
 
-```json
+Settings are stored in `settings.jsonc` (JSON with Comments) format. The file supports inline `//` comments and block `/* */` comments for documentation.
+
+```jsonc
 {
-  "UserAgent": "string",
-  "Timeout": int,
-  "Retries": int,
-  "MaxDepth": int,
-  "OutputRoot": "string",
-  "WaitBetweenRequests": float,
-  "ParallelDownloads": int,
-  "RejectPatterns": ["string"],
-  "RejectDomains": ["string"],
-  "MediaExtensions": ["string"]
+  // HTTP client settings
+  "UserAgent": "Mozilla/5.0 ...",
+  "Timeout": 15,          // seconds
+  "Retries": 3,
+
+  // Crawl behavior
+  "MaxDepth": 0,          // 0 = unlimited
+  "ParallelDownloads": 2,
+  "WaitBetweenRequests": 1.5,  // seconds between requests
+
+  // Output settings
+  "OutputRoot": "./downloads",
+
+  // URL rejection patterns (matched as substrings)
+  "RejectPatterns": [
+    "action=",            // MediaWiki: edit/history pages
+    "oldid=",             // MediaWiki: old revisions
+    // ... more patterns with inline comments
+  ],
+
+  // Domains to block entirely
+  "RejectDomains": ["analytics."],
+
+  // File extensions for media download pass
+  "MediaExtensions": [".png", ".jpg", ...]
 }
 ```
+
+**Note**: The loader falls back to `settings.json` if `settings.jsonc` is not found (for backwards compatibility).
 
 ## CLI Interface
 
@@ -198,7 +218,7 @@ site-sucker [url] [options]
 
 Options:
   -o, --output-dir DIR     Output directory
-  -s, --settings PATH      Custom settings.json
+  -s, --settings PATH      Custom settings.jsonc (default: ./settings.jsonc)
   -d, --depth INT          Max recursion depth
   -p, --parallel INT       Parallel downloads count
 ```

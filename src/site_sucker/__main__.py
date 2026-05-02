@@ -39,7 +39,7 @@ Examples:
     parser.add_argument(
         "-s", "--settings",
         dest="settings_path",
-        help="Path to custom settings.json (default: ./settings.json)",
+        help="Path to custom settings.jsonc (default: ./settings.jsonc)",
     )
 
     parser.add_argument(

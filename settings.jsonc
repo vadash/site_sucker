@@ -1,0 +1,86 @@
+{
+  // ============================================
+  // SiteSucker Configuration
+  // ============================================
+  // This file controls how websites are downloaded and processed.
+  // RejectPatterns exclude low-value pages during the crawl phase.
+
+  // HTTP client settings
+  "UserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+  "Timeout": 15,          // seconds to wait for server response
+  "Retries": 3,           // number of retry attempts for failed requests
+  "WaitBetweenRequests": 1.5,  // seconds to wait between requests (be polite)
+
+  // Crawl behavior
+  "MaxDepth": 4,          // maximum recursion depth (0 = unlimited)
+  "ParallelDownloads": 2, // number of concurrent download threads
+
+  // Output settings
+  "OutputRoot": "./downloads",  // where to save downloaded sites
+
+  // URL rejection patterns (matched as substrings)
+  // These skip low-value or transient pages during the wget pass
+  "RejectPatterns": [
+    // MediaWiki patterns
+    "action=",            // edit/history action pages (duplicates)
+    "oldid=",             // old revision pages (duplicates)
+    "diff=",              // diff comparison pages (transient)
+    "printable=",         // printable versions (redundant)
+    "returnto=",          // redirect pages (transient)
+    "redirect=",          // general redirect URLs (transient)
+    "Special:",           // special pages (dynamic, not archived)
+    "Talk:",              // talk discussion pages (low priority)
+    "User:",              // user profile pages (low priority)
+    "User_talk:",         // user talk pages (low priority)
+    "Category_talk:",     // category talk pages (low priority)
+    "load.php",           // ResourceLoader modules (served locally in offline mode)
+    "api.php",            // API endpoint (not browsable content)
+
+    // phpBB patterns
+    "mode=reply",         // empty reply form pages (useless offline)
+    "mode=login",         // login pages (don't work offline)
+    "mode=register",      // registration pages (don't work offline)
+    "mode=quote",         // quote reply pages (transient)
+    "sr=posts",           // user post search results (dynamic)
+    "sr=topics",          // user topic search results (dynamic)
+    "mode=viewprofile",   // user profile pages (low value)
+    "view=unread",        // unread post redirects (transient)
+    "tradegold.php",      // trade/gold pages (game-specific, not archived)
+    "cron.php",           // background cron tasks (admin-only)
+    "feed.php",           // RSS/Atom feeds (tiny, not useful offline)
+    "ucp.php",            // user control panel (requires login)
+    "mcp.php",            // moderator control panel (requires login)
+    "faq.php",            // FAQ pages (usually static, low priority)
+    "sid=",               // session IDs (exact duplicates with sessions)
+    "download/file.php"   // attachments/avatars (large, optional; downloaded separately if needed)
+  ],
+
+  // Domains to block entirely (analytics, tracking)
+  "RejectDomains": [
+    "matomo.",
+    "analytics."
+  ],
+
+  // File extensions to treat as media during parallel download pass
+  "MediaExtensions": [
+    // Images
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".svg",
+    ".ico",
+    ".bmp",
+    // Video
+    ".mp4",
+    ".webm",
+    ".avi",
+    ".mkv",
+    ".mov",
+    // Web resources
+    ".css",
+    ".js",
+    ".woff2"
+  ]
+}
