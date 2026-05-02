@@ -79,7 +79,8 @@ def build_wget_args(
         reject_parts.append(f"({reject_domains})")
 
     # Forum-specific: reject viewtopic.php?p= per-post duplicates
-    reject_parts.append(r"viewtopic\.php.*&p=\d+|viewtopic\.php\?p=\d+")
+    # POSIX ERE doesn't support \d, use [0-9] instead
+    reject_parts.append(r"viewtopic\.php.*&p=[0-9]+|viewtopic\.php\?p=[0-9]+")
 
     if reject_parts:
         combined = "|".join(reject_parts)

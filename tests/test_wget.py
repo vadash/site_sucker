@@ -109,8 +109,8 @@ def test_build_wget_args_with_reject_patterns(sample_settings: dict):
 
     # Should include reject regex for patterns
     assert "--reject-regex" in args
-    # Should include forum-specific pattern
-    assert any("viewtopic\\.php" in arg for arg in args)
+    # Should include forum-specific pattern with POSIX [0-9] not \d
+    assert any("viewtopic\\.php.*&p=[0-9]+" in arg for arg in args)
 
 
 def test_build_wget_args_extra_args(sample_settings: dict):

@@ -37,14 +37,16 @@
     "api.php",            // API endpoint (not browsable content)
 
     // phpBB patterns
+    "search.php",         // blocks Active Topics, Unread Posts, user post histories (main source of duplicate URL permutations)
+    "view=",              // blocks view=unread, view=next, view=previous, view=print
+    "hilit=",             // blocks search highlighting duplicates (huge source of duplicates)
+    "style=",             // blocks theme-switching duplicates
+    "mark=",              // blocks "mark forums read" duplicates
     "mode=reply",         // empty reply form pages (useless offline)
     "mode=login",         // login pages (don't work offline)
     "mode=register",      // registration pages (don't work offline)
     "mode=quote",         // quote reply pages (transient)
-    "sr=posts",           // user post search results (dynamic)
-    "sr=topics",          // user topic search results (dynamic)
     "mode=viewprofile",   // user profile pages (low value)
-    "view=unread",        // unread post redirects (transient)
     "tradegold.php",      // trade/gold pages (game-specific, not archived)
     "cron.php",           // background cron tasks (admin-only)
     "feed.php",           // RSS/Atom feeds (tiny, not useful offline)
