@@ -190,6 +190,77 @@ def discover_links(
     return links
 
 
+def discover_css_imports(
+    css_file: Path,
+    base_url: str,
+    target_domain: str,
+    reject_patterns: list[str] | None = None,
+    reject_domains: list[str] | None = None,
+) -> set[str]:
+    """Extract CSS @import references from a CSS file.
+
+    Parses CSS files for @import statements (both url("...") and "..." syntax).
+    This ensures CSS dependency chains are downloaded during BFS crawling.
+
+    Args:
+        css_file: Path to CSS file to parse.
+        base_url: Base URL of this CSS file (used to resolve relative paths).
+        target_domain: Primary domain to filter URLs (only keep URLs to this domain).
+        reject_patterns: List of substring patterns to reject.
+        reject_domains: List of domains to reject.
+
+    Returns:
+        Set of absolute CSS URLs belonging to target_domain, after reject filtering.
+    """
+    imports = set()
+
+    try:
+        with open(css_file, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read()
+    except (IOError, OSError):
+        return imports
+
+    if not content:
+        return imports
+
+    # Match @import url("...") and @import "..." patterns
+    import_pattern = re.compile(
+        r'@import\s+(?:url\(\s*)?["\']([^"\']+)["\'](?:\s*\))?;'
+    )
+
+    for match in import_pattern.finditer(content):
+        import_path = match.group(1)
+
+        # Skip external imports (http/https)
+        if import_path.startswith(('http://', 'https://')):
+            continue
+
+        # Resolve relative import against base URL
+        absolute_url = urljoin(base_url, import_path)
+
+        try:
+            parsed = urlparse(absolute_url)
+        except Exception:
+            continue
+
+        if parsed.scheme not in ("http", "https"):
+            continue
+        if parsed.hostname != target_domain:
+            continue
+
+        if reject_patterns:
+            if any(pattern in absolute_url for pattern in reject_patterns):
+                continue
+
+        if reject_domains:
+            if any(parsed.hostname == domain for domain in reject_domains if parsed.hostname):
+                continue
+
+        imports.add(absolute_url)
+
+    return imports
+
+
 def crawl_loop(
     url: str,
     output_dir: Path,
@@ -296,8 +367,8 @@ def crawl_loop(
             print(f"    Error: File not found after download attempt: {expected_path}")
             continue
 
-        # ONLY parse HTML files for more links
-        # (Skips parsing .png, .js, .css files to save CPU)
+        # Parse HTML files for links AND CSS files for @import statements
+        # (Skips parsing .png, .js files to save CPU)
         if actual_path.suffix.lower() in [".html", ".htm", ""]:
             # Parse HTML for links (regardless of whether we just downloaded or used cache)
             new_links = discover_links(
@@ -312,6 +383,21 @@ def crawl_loop(
             for link in new_links:
                 if link not in visited:
                     queue.append((link, depth + 1))
+
+        elif actual_path.suffix.lower() == ".css":
+            # Parse CSS for @import statements (e.g., @import url("colors.css"))
+            css_imports = discover_css_imports(
+                actual_path,
+                current_url,
+                target_domain,
+                reject_patterns,
+                reject_domains,
+            )
+
+            # Enqueue discovered CSS @import URLs at depth+1
+            for css_url in css_imports:
+                if css_url not in visited:
+                    queue.append((css_url, depth + 1))
 
     print(f"\n[*] BFS crawl complete:")
     print(f"    Visited {len(visited)} URLs")

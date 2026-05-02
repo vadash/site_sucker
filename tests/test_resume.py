@@ -6,6 +6,7 @@ import pytest
 
 from site_sucker.resume import (
     crawl_loop,
+    discover_css_imports,
     discover_links,
     file_exists_on_disk,
     resolve_local_file,
@@ -478,3 +479,261 @@ def test_discover_links_sample_html_includes_page_requisites(tmp_path, sample_ht
     # External resources are filtered out (different domain)
     assert "https://cdn.example.com/style.css" not in links
     assert "https://cdn.example.com/script.js" not in links
+
+
+def test_discover_css_imports_basic(tmp_path):
+    """Test basic CSS @import discovery."""
+    css_content = """
+    /* Main stylesheet */
+    @import url("colors.css");
+    @import "docs08.css";
+
+    body { font-family: Arial; }
+    """
+
+    css_file = tmp_path / "stylesheet.css"
+    css_file.write_text(css_content)
+
+    imports = discover_css_imports(
+        css_file,
+        base_url="https://example.com/styles/stylesheet.css",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    assert "https://example.com/styles/colors.css" in imports
+    assert "https://example.com/styles/docs08.css" in imports
+
+
+def test_discover_css_imports_url_syntax_variants(tmp_path):
+    """Test CSS @import with url() syntax variants."""
+    css_content = """
+    @import url("theme.css");
+    @import url('layout.css');
+    @import url("colors.css");
+    @import "fonts.css";
+    """
+
+    css_file = tmp_path / "main.css"
+    css_file.write_text(css_content)
+
+    imports = discover_css_imports(
+        css_file,
+        base_url="https://example.com/css/main.css",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    assert "https://example.com/css/theme.css" in imports
+    assert "https://example.com/css/layout.css" in imports
+    assert "https://example.com/css/colors.css" in imports
+    assert "https://example.com/css/fonts.css" in imports
+
+
+def test_discover_css_imports_skips_external(tmp_path):
+    """Test that external @import statements are skipped."""
+    css_content = """
+    @import url("https://fonts.googleapis.com/css?family=Roboto");
+    @import url("https://cdn.example.com/external.css");
+    @import "local.css";
+    """
+
+    css_file = tmp_path / "stylesheet.css"
+    css_file.write_text(css_content)
+
+    imports = discover_css_imports(
+        css_file,
+        base_url="https://example.com/styles/stylesheet.css",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    # External imports should be skipped
+    assert "https://fonts.googleapis.com/css?family=Roboto" not in imports
+    assert "https://cdn.example.com/external.css" not in imports
+    # Local import should be included
+    assert "https://example.com/styles/local.css" in imports
+
+
+def test_discover_css_imports_relative_paths(tmp_path):
+    """Test CSS @import with various relative path formats."""
+    css_content = """
+    @import url("../parent.css");
+    @import url("/absolute/root.css");
+    @import url("sub/nested.css");
+    """
+
+    css_file = tmp_path / "stylesheet.css"
+    css_file.write_text(css_content)
+
+    imports = discover_css_imports(
+        css_file,
+        base_url="https://example.com/styles/stylesheet.css",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    assert "https://example.com/parent.css" in imports
+    assert "https://example.com/absolute/root.css" in imports
+    assert "https://example.com/styles/sub/nested.css" in imports
+
+
+def test_discover_css_imports_reject_patterns(tmp_path):
+    """Test CSS @import with reject patterns."""
+    css_content = """
+    @import url("colors.css");
+    @import url("blocked.css");
+    @import url("theme.css");
+    """
+
+    css_file = tmp_path / "stylesheet.css"
+    css_file.write_text(css_content)
+
+    imports = discover_css_imports(
+        css_file,
+        base_url="https://example.com/styles/stylesheet.css",
+        target_domain="example.com",
+        reject_patterns=["blocked.css"],
+        reject_domains=[],
+    )
+
+    assert "https://example.com/styles/colors.css" in imports
+    assert "https://example.com/styles/blocked.css" not in imports
+    assert "https://example.com/styles/theme.css" in imports
+
+
+def test_discover_css_imports_reject_domains(tmp_path):
+    """Test CSS @import with domain rejection."""
+    css_content = """
+    @import url("local.css");
+    @import url("//other-domain.com/external.css");
+    @import url("https://another.com/style.css");
+    """
+
+    css_file = tmp_path / "stylesheet.css"
+    css_file.write_text(css_content)
+
+    imports = discover_css_imports(
+        css_file,
+        base_url="https://example.com/styles/stylesheet.css",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=["other-domain.com"],
+    )
+
+    # Local import should be included
+    assert "https://example.com/styles/local.css" in imports
+    # External imports should be excluded (different domain)
+    assert "https://other-domain.com/external.css" not in imports
+    assert "https://another.com/style.css" not in imports
+
+
+def test_discover_css_imports_multiple_imports(tmp_path):
+    """Test CSS @import with multiple imports in one file."""
+    css_content = """
+    @import url("reset.css");
+    @import url("typography.css");
+    @import url("layout.css");
+    @import url("colors.css");
+    @import url("components.css");
+
+    body { margin: 0; }
+    """
+
+    css_file = tmp_path / "main.css"
+    css_file.write_text(css_content)
+
+    imports = discover_css_imports(
+        css_file,
+        base_url="https://example.com/css/main.css",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    assert len(imports) == 5
+    assert "https://example.com/css/reset.css" in imports
+    assert "https://example.com/css/typography.css" in imports
+    assert "https://example.com/css/layout.css" in imports
+    assert "https://example.com/css/colors.css" in imports
+    assert "https://example.com/css/components.css" in imports
+
+
+def test_discover_css_imports_empty_file(tmp_path):
+    """Test CSS @import with empty CSS file."""
+    css_file = tmp_path / "empty.css"
+    css_file.write_text("")
+
+    imports = discover_css_imports(
+        css_file,
+        base_url="https://example.com/empty.css",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    assert len(imports) == 0
+
+
+def test_discover_css_imports_no_imports(tmp_path):
+    """Test CSS @import with CSS file that has no @import statements."""
+    css_content = """
+    body {
+        font-family: Arial, sans-serif;
+        color: #333;
+    }
+
+    h1 {
+        font-size: 24px;
+    }
+    """
+
+    css_file = tmp_path / "styles.css"
+    css_file.write_text(css_content)
+
+    imports = discover_css_imports(
+        css_file,
+        base_url="https://example.com/styles.css",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    assert len(imports) == 0
+
+
+def test_discover_css_imports_chained(tmp_path):
+    """Test CSS @import chain (A imports B, B imports C)."""
+    # File A imports B
+    css_a_content = '@import url("b.css");'
+    css_a = tmp_path / "a.css"
+    css_a.write_text(css_a_content)
+
+    imports_a = discover_css_imports(
+        css_a,
+        base_url="https://example.com/a.css",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    assert "https://example.com/b.css" in imports_a
+
+    # File B imports C
+    css_b_content = '@import url("c.css");'
+    css_b = tmp_path / "b.css"
+    css_b.write_text(css_b_content)
+
+    imports_b = discover_css_imports(
+        css_b,
+        base_url="https://example.com/b.css",
+        target_domain="example.com",
+        reject_patterns=[],
+        reject_domains=[],
+    )
+
+    assert "https://example.com/c.css" in imports_b
