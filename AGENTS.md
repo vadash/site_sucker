@@ -38,6 +38,7 @@ Website mirror tool. 4-pass pipeline: wget mirror → external media download �
 - **Logging**: Use `logging` module, never `print()`
 - **Paths**: Always `pathlib.Path`, resolve to absolute before file ops
 - **Error style**: `FileNotFoundError` for missing wget; empty list/set for "not found"; `try/except` for IO
+- **Naming conventions**: Follow PEP 8 — `snake_case` for functions/variables, `PascalCase` for classes, `UPPER_CASE` for constants (enforced by Ruff)
 
 ## Running Tests & Linting
 

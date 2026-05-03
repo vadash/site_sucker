@@ -64,6 +64,7 @@ select = [
     "UP",  # pyupgrade
     "ARG", # flake8-unused-arguments
     "SIM", # flake8-simplify
+    "N",   # pep8-naming (naming conventions)
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
