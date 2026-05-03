@@ -1,125 +1,79 @@
 """Resume mode: Python-based BFS crawler to bypass 429 bot protection.
 
-Replaces wget's built-in spidering with Python-managed link discovery.
-Wget becomes a single-file downloader (--level=1, no recursion).
+Replaces wget's built-in spidering with Python-managed link discovery and native HTTP fetching.
+Uses requests.Session for persistent connections and automatic retry with backoff.
 """
 
-import os
 import re
-import subprocess
 import time
 from collections import deque
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
 from bs4 import BeautifulSoup
 
 
 def url_to_filepath(url: str, output_dir: Path) -> Path:
-    """Convert a URL to its expected local file path (wget --restrict-file-names=windows).
+    """Convert a URL to its expected local file path.
 
-    Does NOT append .html extension — that's handled by file_exists_on_disk().
-    This is a forward-only mapping: we don't need to reverse-engineer filenames.
+    Mimics wget's --restrict-file-names=windows behavior:
+    - Converts ? to @
+    - Converts / in query strings to %2F
+    - Strips fragments
+    - Handles root and trailing-slash URLs as index.html
 
     Args:
         url: The URL to convert.
         output_dir: Root output directory.
 
     Returns:
-        Expected local file path (may or may not exist).
+        Expected local file path.
     """
     parsed = urlparse(url)
 
-    # Reconstruct path with query params, but fragment
-    # wget converts ? and # to @ for Windows compatibility
     path = parsed.path
 
-    # Handle root URLs and trailing slashes (Wget saves these as index.html)
+    # Handle root URLs and trailing slashes
     if not path or path.endswith("/"):
         path = path + "index.html"
 
-    # Append query parameters (if any) - wget converts ? to @
+    # Append query parameters (if any) - ? becomes @
     if parsed.query:
-        # Escape / in query params as %2F to avoid directory creation
         escaped_query = parsed.query.replace("/", "%2F")
         path = f"{path}@{escaped_query}"
 
-    # Don't include fragments - wget strips them
-
     # Build full path
     if path.startswith("/"):
-        path = path[1:]  # Remove leading slash for relative path
+        path = path[1:]
 
     full_path = output_dir / path
     return full_path
 
 
-def _check_path_exists(path: Path) -> bool:
-    """Check if a path exists and is a file."""
-    return path.exists() and path.is_file()
+def get_actual_save_path(expected_path: Path) -> Path:
+    """Determine the final save path (appending .html if necessary).
 
-
-# Extensions wget may append via --adjust-extension based on Content-Type.
-# .html is the most common (text/html), but wget also appends the actual
-# content-type extension on top of query-string filenames, producing
-# double extensions like "style.css@ver=123.css".
-_ADJUST_EXTENSION_SUFFIXES = (".html", ".htm", ".css", ".js", ".json", ".xml")
-
-
-def file_exists_on_disk(expected_path: Path) -> bool:
-    """Check if a file exists on disk, accounting for wget's --adjust-extension behavior.
-
-    Wget appends extensions based on Content-Type. For .php URLs it adds .html,
-    but for CSS/JS URLs with query strings it produces double extensions like
-    "style.css@ver=123.css". We check the exact path plus all plausible suffixes.
+    Since Python now controls file saving, we dictate the extension.
+    If the URL doesn't end in a known extension, we append .html.
 
     Args:
         expected_path: Expected path from url_to_filepath().
 
     Returns:
-        True if file exists (with or without an appended extension).
+        Final save path with .html appended if needed.
     """
-    if _check_path_exists(expected_path):
-        return True
-
-    for suffix in _ADJUST_EXTENSION_SUFFIXES:
-        if _check_path_exists(Path(str(expected_path) + suffix)):
-            return True
-
-    return False
-
-
-def resolve_local_file(expected_path: Path, output_dir: Path) -> Path | None:
-    """Resolve which file actually exists on disk (accounting for --adjust-extension).
-
-    Checks locations in order:
-    1. Exact expected path
-    2. With content-type extension appended (wget's --adjust-extension behavior)
-    3. Flattened to output_dir root (wget without -r saves files flat)
-
-    Args:
-        expected_path: Expected path from url_to_filepath().
-        output_dir: Root output directory for flattened file fallback.
-
-    Returns:
-        Actual file path if it exists, None otherwise.
-    """
-    if _check_path_exists(expected_path):
+    known_extensions = {".css", ".js", ".html", ".htm", ".json", ".xml",
+                        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".bmp",
+                        ".woff", ".woff2", ".ttf", ".eot", ".otf",
+                        ".mp4", ".webm", ".avi", ".mkv", ".mov", ".mp3", ".pdf"}
+    if expected_path.suffix.lower() in known_extensions:
         return expected_path
-
-    for suffix in _ADJUST_EXTENSION_SUFFIXES:
-        suffixed = Path(str(expected_path) + suffix)
-        if _check_path_exists(suffixed):
-            return suffixed
-
-    # Fallback: check flattened path (wget without -r saves files at root)
-    # e.g., expected images/art/foo.jpg -> check output_dir/foo.jpg
-    flat_path = output_dir / expected_path.name
-    if _check_path_exists(flat_path):
-        return flat_path
-
-    return None
+    return expected_path.with_name(expected_path.name + ".html")
 
 
 def discover_links(
@@ -159,7 +113,6 @@ def discover_links(
 
     def _add_url(url_attr: str):
         """Add a URL to the links set after validation and filtering."""
-        # Skip anchors, JS, mailto, and inline base64 data
         if url_attr.startswith(("#", "javascript:", "mailto:", "data:")):
             return
 
@@ -186,11 +139,9 @@ def discover_links(
         normalized = absolute_url.split("#")[0]
         links.add(normalized)
 
-    # 1. Grab normal HTML navigation links
     for tag in soup.find_all("a", href=True):
         _add_url(tag["href"])
 
-    # 2. Grab internal page requisites (images, css, js, video, audio)
     for tag in soup.find_all(["img", "script", "link", "video", "audio", "source"]):
         for attr in ("src", "href", "data-src"):
             val = tag.get(attr)
@@ -233,19 +184,14 @@ def discover_css_imports(
     if not content:
         return imports
 
-    # Match @import url("...") and @import "..." patterns
-    import_pattern = re.compile(
-        r'@import\s+(?:url\(\s*)?["\']([^"\']+)["\'](?:\s*\))?;'
-    )
+    import_pattern = re.compile(r'@import\s+(?:url\(\s*)?["\']([^"\']+)["\'](?:\s*\))?;')
 
     for match in import_pattern.finditer(content):
         import_path = match.group(1)
 
-        # Skip external imports (http/https)
         if import_path.startswith(('http://', 'https://')):
             continue
 
-        # Resolve relative import against base URL
         absolute_url = urljoin(base_url, import_path)
 
         try:
@@ -271,158 +217,166 @@ def discover_css_imports(
     return imports
 
 
+class ResumeCrawler:
+    """Manages the BFS crawl state and native HTTP fetching."""
+
+    def __init__(self, output_dir: Path, target_domain: str, settings: dict[str, Any]):
+        self.output_dir = output_dir
+        self.target_domain = target_domain
+        self.settings = settings
+
+        self.max_depth = settings.get("MaxDepth", 0)
+        self.wait_seconds = settings.get("WaitBetweenRequests", 1.5)
+        self.timeout = settings.get("Timeout", 15)
+        self.retries = settings.get("Retries", 3)
+
+        self.reject_patterns = settings.get("RejectPatterns", [])
+        self.reject_domains = settings.get("RejectDomains", [])
+
+        # State
+        self.visited = set()
+        self.queue = deque()
+        self.stats = {"downloaded": 0, "cached": 0, "failed": 0}
+
+        # Configure requests session with retry logic
+        self.session = requests.Session()
+        retry_strategy = Retry(
+            total=self.retries,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503],
+            allowed_methods=["GET", "HEAD"],
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
+        self.session.headers.update({"User-Agent": settings["UserAgent"], "Accept-Encoding": "identity"})
+
+    def fetch_file(self, url: str, save_path: Path) -> bool:
+        """Fetch a file natively using Python, handling redirects and retries.
+
+        Args:
+            url: URL to fetch.
+            save_path: Where to save the file.
+
+        Returns:
+            True if successful, False otherwise.
+        """
+        try:
+            response = self.session.get(url, timeout=self.timeout, stream=False)
+            response.raise_for_status()
+
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            save_path.write_bytes(response.content)
+            return True
+        except requests.RequestException as e:
+            print(f"\n         ↳ Fetch failed: {e}")
+            return False
+
+    def run(self, seed_url: str):
+        """Execute the BFS crawl loop.
+
+        Args:
+            seed_url: Starting URL for the crawl.
+        """
+        self.queue.append((seed_url, 0))
+        iteration = 0
+
+        print(f"\n[*] BFS crawl: {self.target_domain} (depth={self.max_depth if self.max_depth > 0 else 'unlimited'})")
+
+        while self.queue:
+            iteration += 1
+            current_url, depth = self.queue.popleft()
+
+            if current_url in self.visited:
+                continue
+            self.visited.add(current_url)
+
+            if self.max_depth > 0 and depth > self.max_depth:
+                continue
+
+            # Determine where this file lives locally
+            base_path = url_to_filepath(current_url, self.output_dir)
+            actual_path = get_actual_save_path(base_path)
+
+            file_existed = actual_path.exists()
+
+            # Download if missing
+            if not file_existed:
+                parsed_url = urlparse(current_url)
+                short_path = parsed_url.path + (f"?{parsed_url.query}" if parsed_url.query else "")
+                print(f"  [{iteration}] GET {short_path}")
+
+                success = self.fetch_file(current_url, actual_path)
+
+                if success:
+                    self.stats["downloaded"] += 1
+                else:
+                    self.stats["failed"] += 1
+                    continue
+
+                if self.wait_seconds > 0:
+                    time.sleep(self.wait_seconds)
+            else:
+                self.stats["cached"] += 1
+                print(f"\r  Cached: {self.stats['cached']}, Downloaded: {self.stats['downloaded']}", end="", flush=True)
+
+            # Parse the file for new links
+            self.process_discovered_links(current_url, actual_path, depth)
+
+        if self.stats["cached"] > 0:
+            print()
+
+        failure_suffix = f" ({self.stats['failed']} failed)" if self.stats['failed'] > 0 else ""
+        print(f"[*] BFS complete: {len(self.visited)} visited, {self.stats['downloaded']} downloaded{failure_suffix}")
+
+    def process_discovered_links(self, current_url: str, local_path: Path, current_depth: int):
+        """Extract links from HTML or CSS and add to queue.
+
+        Args:
+            current_url: The URL of the file being parsed.
+            local_path: Local path to the file.
+            current_depth: Current depth in the BFS tree.
+        """
+        if local_path.suffix.lower() in [".html", ".htm"]:
+            new_links = discover_links(
+                local_path,
+                current_url,
+                self.target_domain,
+                self.reject_patterns,
+                self.reject_domains,
+            )
+            for link in new_links:
+                if link not in self.visited:
+                    self.queue.append((link, current_depth + 1))
+
+        elif local_path.suffix.lower() == ".css":
+            css_imports = discover_css_imports(
+                local_path,
+                current_url,
+                self.target_domain,
+                self.reject_patterns,
+                self.reject_domains,
+            )
+            for css_url in css_imports:
+                if css_url not in self.visited:
+                    self.queue.append((css_url, current_depth + 1))
+
+
 def crawl_loop(
     url: str,
     output_dir: Path,
     target_domain: str,
     settings: dict[str, Any],
-    wget_path: Path,
+    wget_path: Path | None = None,
 ) -> None:
-    """BFS crawl loop: discover links, download missing files, repeat.
-
-    Wget is only used as a single-file downloader (--level=1, no recursion).
-    All crawl state (visited, queue, depth) is managed in Python.
+    """Entry point for the resume crawler.
 
     Args:
         url: Seed URL to start crawling from.
         output_dir: Output directory for downloaded files.
         target_domain: Primary domain being mirrored.
         settings: Configuration dictionary.
-        wget_path: Path to wget.exe binary.
+        wget_path: Ignored (kept for backwards compatibility).
     """
-    # Disable proxies for subprocess calls
-    env = os.environ.copy()
-    for var in ["http_proxy", "https_proxy", "all_proxy", "HTTP_PROXY", "HTTPS_PROXY"]:
-        env.pop(var, None)
-
-    # Get settings
-    max_depth = settings.get("MaxDepth", 0)
-    wait_seconds = settings.get("WaitBetweenRequests", 1.5)
-    user_agent = settings["UserAgent"]
-    timeout = settings["Timeout"]
-    retries = settings["Retries"]
-
-    # Crawl state
-    visited = set()
-    queue = deque()
-    queue.append((url, 0))  # (url, depth)
-
-    reject_patterns = settings.get("RejectPatterns", [])
-    reject_domains = settings.get("RejectDomains", [])
-
-    iteration = 0
-    total_downloaded = 0
-    total_cached = 0
-    failed_downloads = 0
-
-    print(f"\n[*] BFS crawl: {target_domain} (depth={max_depth if max_depth > 0 else 'unlimited'})")
-
-    while queue:
-        iteration += 1
-        current_url, depth = queue.popleft()
-
-        # Skip if already visited
-        if current_url in visited:
-            continue
-        visited.add(current_url)
-
-        # Skip if depth exceeded
-        if max_depth > 0 and depth > max_depth:
-            continue
-
-        # Map URL to expected file path
-        expected_path = url_to_filepath(current_url, output_dir)
-        file_existed = file_exists_on_disk(expected_path)
-
-        # Download if missing
-        if not file_existed:
-            # Show short URL path (domain already in header)
-            parsed_url = urlparse(current_url)
-            short_path = parsed_url.path + (f"?{parsed_url.query}" if parsed_url.query else "")
-            print(f"  [{iteration}] GET {short_path}")
-
-            # Build wget args for single-page fetch
-            args = [
-                str(wget_path),
-                "-e", "robots=off",
-                "--no-proxy",
-                "--no-verbose",
-                "--restrict-file-names=windows",
-                "--no-host-directories",
-                f"--directory-prefix={output_dir}",
-                f"--user-agent={user_agent}",
-                f"--timeout={timeout}",
-                f"--tries={retries}",
-                "--header=Accept-Encoding: identity",
-                "-r",            # Recursive mode needed for directory hierarchy
-                "--level=1",     # No actual recursion, fetch single page
-                "--no-parent",   # Don't traverse up
-                "--adjust-extension",
-                current_url,
-            ]
-
-            result = subprocess.run(args, capture_output=True, env=env)
-
-            if result.returncode not in (0, 8):
-                failed_downloads += 1
-                stderr_output = result.stderr.decode("utf-8", errors="replace").strip()
-                print(f"         ↳ wget exit {result.returncode}")
-                if stderr_output:
-                    # Show first line of stderr (usually the error message)
-                    first_line = stderr_output.split("\n")[0]
-                    print(f"         ↳ {first_line}")
-
-            total_downloaded += 1
-
-            # Respect rate limiting
-            if wait_seconds > 0:
-                time.sleep(wait_seconds)
-        else:
-            total_cached += 1
-            # Show progress using carriage return (overwrite in-place)
-            print(f"\r  Cached: {total_cached}, Downloaded: {total_downloaded}", end="", flush=True)
-
-        # Resolve the actual file path (with or without .html suffix)
-        actual_path = resolve_local_file(expected_path, output_dir)
-        if not actual_path:
-            print(f"    Error: File not found after download attempt: {expected_path}")
-            continue
-
-        # Parse HTML files for links AND CSS files for @import statements
-        # (Skips parsing .png, .js files to save CPU)
-        if actual_path.suffix.lower() in [".html", ".htm", ""]:
-            # Parse HTML for links (regardless of whether we just downloaded or used cache)
-            new_links = discover_links(
-                actual_path,
-                current_url,
-                target_domain,
-                reject_patterns,
-                reject_domains,
-            )
-
-            # Enqueue newly discovered links at depth+1
-            for link in new_links:
-                if link not in visited:
-                    queue.append((link, depth + 1))
-
-        elif actual_path.suffix.lower() == ".css":
-            # Parse CSS for @import statements (e.g., @import url("colors.css"))
-            css_imports = discover_css_imports(
-                actual_path,
-                current_url,
-                target_domain,
-                reject_patterns,
-                reject_domains,
-            )
-
-            # Enqueue discovered CSS @import URLs at depth+1
-            for css_url in css_imports:
-                if css_url not in visited:
-                    queue.append((css_url, depth + 1))
-
-    # Clear the progress line by printing newline
-    if total_cached > 0:
-        print()
-
-    failure_suffix = f" ({failed_downloads} failed)" if failed_downloads > 0 else ""
-    print(f"[*] BFS complete: {len(visited)} visited, {total_downloaded} downloaded{failure_suffix}")
+    crawler = ResumeCrawler(output_dir, target_domain, settings)
+    crawler.run(url)

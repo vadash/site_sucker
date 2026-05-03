@@ -9,7 +9,7 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 
 from site_sucker.replacement_pipeline import ReplacementStep, run_replacement_pipeline
-from site_sucker.resume import resolve_local_file, url_to_filepath
+from site_sucker.resume import get_actual_save_path, url_to_filepath
 
 
 def _repair_html_links(
@@ -363,10 +363,10 @@ def repair_internal_links(
             # Map URL to expected local file path
             expected_path = url_to_filepath(absolute_url, output_dir)
 
-            # Resolve actual file (may have .html suffix or flattened path)
-            actual_path = resolve_local_file(expected_path, output_dir)
+            # Resolve actual file (Python now saves files where we expect)
+            actual_path = get_actual_save_path(expected_path)
 
-            if not actual_path:
+            if not actual_path.exists():
                 # File doesn't exist locally, leave link unchanged
                 continue
 
@@ -408,10 +408,10 @@ def repair_internal_links(
                 # Map URL to expected local file path
                 expected_path = url_to_filepath(absolute_url, output_dir)
 
-                # Resolve actual file (may have .html suffix or flattened path)
-                actual_path = resolve_local_file(expected_path, output_dir)
+                # Resolve actual file (Python now saves files where we expect)
+                actual_path = get_actual_save_path(expected_path)
 
-                if not actual_path:
+                if not actual_path.exists():
                     # File doesn't exist locally, leave URL unchanged
                     continue
 

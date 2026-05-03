@@ -53,7 +53,7 @@ def invoke_site_mirror(
     # ── PASS 1: Full site mirror (or resume mode) ───────────────────────────────────
     if resume:
         print(f"\n[1/4] Resume mode: Python BFS crawler (bypassing 429 bot protection) ...")
-        crawl_loop(url, output_dir, target_domain, settings, wget_path)
+        crawl_loop(url, output_dir, target_domain, settings)
 
         # Rewrite internal HTML-to-HTML links (wget didn't do --convert-links)
         repair_internal_links(output_dir, target_domain)

@@ -8,8 +8,7 @@ from site_sucker.resume import (
     crawl_loop,
     discover_css_imports,
     discover_links,
-    file_exists_on_disk,
-    resolve_local_file,
+    get_actual_save_path,
     url_to_filepath,
 )
 
@@ -75,133 +74,58 @@ def test_url_to_filepath_slash_escaping_in_query():
     assert result == Path("/downloads/search@q=test%2Fterm")
 
 
-def test_file_exists_on_disk_exact_match(tmp_path):
-    """Test file existence check with exact match."""
-    # Create test file
-    test_file = tmp_path / "page.html"
-    test_file.write_text("<html>test</html>")
+def test_get_actual_save_path_known_extensions():
+    """Test that known extensions are preserved."""
+    # CSS - should not append .html
+    path = Path("/downloads/style.css")
+    assert get_actual_save_path(path) == path
 
-    assert file_exists_on_disk(test_file) is True
+    # JS - should not append .html
+    path = Path("/downloads/script.js")
+    assert get_actual_save_path(path) == path
 
+    # HTML - should not append .html
+    path = Path("/downloads/page.html")
+    assert get_actual_save_path(path) == path
 
-def test_file_exists_on_disk_html_appended(tmp_path):
-    """Test file existence check with .html appended (wget behavior)."""
-    # Create file with .html extension
-    test_file = tmp_path / "page.html"
-    test_file.write_text("<html>test</html>")
+    # HTM - should not append .html
+    path = Path("/downloads/page.htm")
+    assert get_actual_save_path(path) == path
 
-    # Check base path without .html
-    base_path = tmp_path / "page"
-    assert file_exists_on_disk(base_path) is True
+    # JSON - should not append .html
+    path = Path("/downloads/data.json")
+    assert get_actual_save_path(path) == path
 
-
-def test_file_exists_on_disk_css_double_extension(tmp_path):
-    """Test file existence check when wget appends .css on top of query-string filename.
-
-    Wget with --adjust-extension saves "responsive.css?assets_version=933" as
-    "responsive.css@assets_version=933.css" (double extension).
-    """
-    test_file = tmp_path / "responsive.css@assets_version=933.css"
-    test_file.write_text("body { color: red; }")
-
-    expected_path = tmp_path / "responsive.css@assets_version=933"
-    assert file_exists_on_disk(expected_path) is True
+    # XML - should not append .html
+    path = Path("/downloads/data.xml")
+    assert get_actual_save_path(path) == path
 
 
-def test_file_exists_on_disk_js_double_extension(tmp_path):
-    """Test file existence check when wget appends .js on top of query-string filename."""
-    test_file = tmp_path / "core.js@assets_version=933.js"
-    test_file.write_text("console.log('hi');")
+def test_get_actual_save_path_unknown_extensions():
+    """Test that unknown extensions get .html appended."""
+    # PHP - should append .html
+    path = Path("/downloads/viewtopic.php")
+    result = get_actual_save_path(path)
+    assert result == Path("/downloads/viewtopic.php.html")
 
-    expected_path = tmp_path / "core.js@assets_version=933"
-    assert file_exists_on_disk(expected_path) is True
+    # No extension - should append .html
+    path = Path("/downloads/page")
+    result = get_actual_save_path(path)
+    assert result == Path("/downloads/page.html")
 
-
-def test_file_exists_on_disk_not_found(tmp_path):
-    """Test file existence check when file doesn't exist."""
-    base_path = tmp_path / "nonexistent"
-    assert file_exists_on_disk(base_path) is False
-
-
-def test_resolve_local_file_exact_match(tmp_path):
-    """Test resolve_local_file returns exact match."""
-    test_file = tmp_path / "page.html"
-    test_file.write_text("<html>test</html>")
-
-    result = resolve_local_file(test_file, tmp_path)
-    assert result == test_file
+    # Query string filename - should append .html
+    path = Path("/downloads/viewtopic.php@f=40&t=123")
+    result = get_actual_save_path(path)
+    assert result == Path("/downloads/viewtopic.php@f=40&t=123.html")
 
 
-def test_resolve_local_file_html_appended(tmp_path):
-    """Test resolve_local_file finds .html appended version."""
-    test_file = tmp_path / "page.html"
-    test_file.write_text("<html>test</html>")
+def test_get_actual_save_path_case_insensitive():
+    """Test that extension check is case-insensitive."""
+    # Uppercase extensions should also be preserved
+    assert get_actual_save_path(Path("/downloads/page.HTML")) == Path("/downloads/page.HTML")
+    assert get_actual_save_path(Path("/downloads/style.CSS")) == Path("/downloads/style.CSS")
+    assert get_actual_save_path(Path("/downloads/script.JS")) == Path("/downloads/script.JS")
 
-    base_path = tmp_path / "page"
-    result = resolve_local_file(base_path, tmp_path)
-    assert result == test_file
-
-
-def test_resolve_local_file_css_double_extension(tmp_path):
-    """Test resolve_local_file finds .css appended version (wget double extension).
-
-    Wget with --adjust-extension saves "style.css?ver=123" as
-    "style.css@ver=123.css" — the code expects "style.css@ver=123".
-    """
-    actual_file = tmp_path / "responsive.css@assets_version=933.css"
-    actual_file.write_text("body { color: red; }")
-
-    expected_path = tmp_path / "responsive.css@assets_version=933"
-    result = resolve_local_file(expected_path, tmp_path)
-    assert result == actual_file
-
-
-def test_resolve_local_file_exact_match_preferred_over_double_extension(tmp_path):
-    """Test that exact path match is preferred over double-extension match."""
-    exact_file = tmp_path / "style.css@ver=123"
-    exact_file.write_text("/* exact */")
-
-    double_ext = tmp_path / "style.css@ver=123.css"
-    double_ext.write_text("/* double */")
-
-    expected_path = tmp_path / "style.css@ver=123"
-    result = resolve_local_file(expected_path, tmp_path)
-    assert result == exact_file
-
-
-def test_resolve_local_file_not_found(tmp_path):
-    """Test resolve_local_file returns None when not found."""
-    base_path = tmp_path / "nonexistent"
-    assert resolve_local_file(base_path, tmp_path) is None
-
-
-def test_resolve_local_file_flattened_fallback(tmp_path):
-    """Test resolve_local_file finds file at output_dir root when expected in subdirectory."""
-    # Create file at root (simulating wget's flat save behavior)
-    root_file = tmp_path / "image.png"
-    root_file.write_bytes(b"\x89PNG")
-
-    # Look for it in a subdirectory path
-    expected_path = tmp_path / "images" / "art" / "image.png"
-    result = resolve_local_file(expected_path, tmp_path)
-    assert result == root_file
-
-
-def test_resolve_local_file_exact_match_preferred_over_flat(tmp_path):
-    """Test that exact path match is preferred over flattened fallback."""
-    # Create file at expected subdirectory path
-    sub_dir = tmp_path / "images"
-    sub_dir.mkdir()
-    exact_file = sub_dir / "image.png"
-    exact_file.write_bytes(b"\x89PNG_exact")
-
-    # Also create file at root (flat)
-    root_file = tmp_path / "image.png"
-    root_file.write_bytes(b"\x89PNG_flat")
-
-    expected_path = tmp_path / "images" / "image.png"
-    result = resolve_local_file(expected_path, tmp_path)
-    assert result == exact_file
 
 
 def test_discover_links_basic(tmp_path, sample_html):
