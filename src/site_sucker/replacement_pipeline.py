@@ -187,7 +187,8 @@ def run_replacement_pipeline(
         # Apply the replacement
         if isinstance(step.pattern, re.Pattern):
             # Regex-based replacement
-            new_content = step.pattern.sub(step.replacement, current_content)
+            repl = step.replacement if step.replacement is not None else ""
+            new_content = step.pattern.sub(repl, current_content)
         elif callable(step.pattern):
             # Callable-based transformation
             new_content = step.pattern(current_content)

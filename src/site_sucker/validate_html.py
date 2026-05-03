@@ -38,7 +38,7 @@ def validate_html_string(content: str) -> dict[str, bool]:
             "has_binary_content": bool
         }
     """
-    results = {
+    results: dict[str, bool] = {
         "valid": True,
         "missing_head": False,
         "missing_body": False,
@@ -92,7 +92,7 @@ def validate_html_string(content: str) -> dict[str, bool]:
     return results
 
 
-def validate_html_files(output_dir: Path | str) -> dict[str, list[str]]:
+def validate_html_files(output_dir: Path | str) -> dict[str, bool | list[str]]:
     """Validate HTML files for structural integrity using BeautifulSoup.
 
     Checks for common issues that indicate incomplete or corrupted downloads:
@@ -114,7 +114,7 @@ def validate_html_files(output_dir: Path | str) -> dict[str, list[str]]:
     """
     output_dir = Path(output_dir)
 
-    results = {
+    results: dict[str, bool | list[str]] = {
         "missing_head": [],
         "missing_body": [],
         "empty_body": [],
@@ -130,21 +130,29 @@ def validate_html_files(output_dir: Path | str) -> dict[str, list[str]]:
             results["all_valid"] = False
 
             if validation["missing_head"]:
-                results["missing_head"].append(str(html_file.relative_to(output_dir)))
+                missing_head = results["missing_head"]
+                if isinstance(missing_head, list):
+                    missing_head.append(str(html_file.relative_to(output_dir)))
 
             if validation["missing_body"]:
-                results["missing_body"].append(str(html_file.relative_to(output_dir)))
+                missing_body = results["missing_body"]
+                if isinstance(missing_body, list):
+                    missing_body.append(str(html_file.relative_to(output_dir)))
 
             if validation["empty_body"]:
-                results["empty_body"].append(str(html_file.relative_to(output_dir)))
+                empty_body = results["empty_body"]
+                if isinstance(empty_body, list):
+                    empty_body.append(str(html_file.relative_to(output_dir)))
 
             if validation["has_binary_content"]:
-                results["has_binary_content"].append(str(html_file.relative_to(output_dir)))
+                has_binary_content = results["has_binary_content"]
+                if isinstance(has_binary_content, list):
+                    has_binary_content.append(str(html_file.relative_to(output_dir)))
 
     return results
 
 
-def print_validation_results(results: dict[str, list[str]]) -> None:
+def print_validation_results(results: dict[str, bool | list[str]]) -> None:
     """Print validation results in a user-friendly format.
 
     Args:
@@ -157,33 +165,37 @@ def print_validation_results(results: dict[str, list[str]]) -> None:
     logger.warning("⚠ HTML validation detected issues:")
     logger.info("=" * 60)
 
-    if results["missing_head"]:
-        logger.info("  Missing head element (%d files):", len(results['missing_head']))
-        for f in results["missing_head"][:5]:
+    missing_head = results.get("missing_head")
+    if isinstance(missing_head, list) and missing_head:
+        logger.info("  Missing head element (%d files):", len(missing_head))
+        for f in missing_head[:5]:
             logger.info("    - %s", f)
-        if len(results["missing_head"]) > 5:
-            logger.info("    ... and %d more", len(results['missing_head']) - 5)
+        if len(missing_head) > 5:
+            logger.info("    ... and %d more", len(missing_head) - 5)
 
-    if results["missing_body"]:
-        logger.info("  Missing body element (%d files):", len(results['missing_body']))
-        for f in results["missing_body"][:5]:
+    missing_body = results.get("missing_body")
+    if isinstance(missing_body, list) and missing_body:
+        logger.info("  Missing body element (%d files):", len(missing_body))
+        for f in missing_body[:5]:
             logger.info("    - %s", f)
-        if len(results["missing_body"]) > 5:
-            logger.info("    ... and %d more", len(results['missing_body']) - 5)
+        if len(missing_body) > 5:
+            logger.info("    ... and %d more", len(missing_body) - 5)
 
-    if results["empty_body"]:
-        logger.info("  Empty body content (%d files):", len(results['empty_body']))
-        for f in results["empty_body"][:5]:
+    empty_body = results.get("empty_body")
+    if isinstance(empty_body, list) and empty_body:
+        logger.info("  Empty body content (%d files):", len(empty_body))
+        for f in empty_body[:5]:
             logger.info("    - %s", f)
-        if len(results['empty_body']) > 5:
-            logger.info("    ... and %d more", len(results['empty_body']) - 5)
+        if len(empty_body) > 5:
+            logger.info("    ... and %d more", len(empty_body) - 5)
 
-    if results["has_binary_content"]:
-        logger.info("  Binary/control characters detected (%d files):", len(results['has_binary_content']))
-        for f in results["has_binary_content"][:5]:
+    has_binary_content = results.get("has_binary_content")
+    if isinstance(has_binary_content, list) and has_binary_content:
+        logger.info("  Binary/control characters detected (%d files):", len(has_binary_content))
+        for f in has_binary_content[:5]:
             logger.info("    - %s", f)
-        if len(results['has_binary_content']) > 5:
-            logger.info("    ... and %d more", len(results['has_binary_content']) - 5)
+        if len(has_binary_content) > 5:
+            logger.info("    ... and %d more", len(has_binary_content) - 5)
 
     logger.info("=" * 60)
     logger.warning("This indicates an incomplete download. Possible causes:")

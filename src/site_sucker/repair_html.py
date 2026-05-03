@@ -235,7 +235,7 @@ def rewrite_internal_html_links(
         if _rewrite_tag_urls(
             soup,
             tags=['img', 'script', 'link', 'video', 'audio', 'source'],
-            attrs=('src', 'href'),
+            attrs=['src', 'href'],
             base_url=base_url,
             target_domain=target_domain,
             output_dir=output_dir,

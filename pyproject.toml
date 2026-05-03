@@ -15,6 +15,9 @@ dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.1.0",
+    "mypy>=1.8.0",
+    "types-requests>=2.31.0",
+    "types-beautifulsoup4>=4.12.0",
 ]
 
 [project.scripts]
@@ -26,6 +29,13 @@ no-build = false
 [build-system]
 requires = ["setuptools>=71.0"]
 build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.20.2",
+    "types-beautifulsoup4>=4.12.0.20250516",
+    "types-requests>=2.33.0.20260408",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -61,3 +71,19 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*.py" = ["ARG", "S101"]  # Allow unused args in tests, allow assert
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false

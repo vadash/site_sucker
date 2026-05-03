@@ -161,6 +161,7 @@ def resolve_config(args: argparse.Namespace, cfg: settings.Settings) -> tuple[st
     # Parse URL and determine target domain
     url = args.url
     target_domain = ""
+    output_dir: str | Path = ""
 
     if not url:
         # Interactive mode

@@ -32,10 +32,48 @@ def build_css_replacement_steps(
     css_steps = []
 
     # 1. Inline CSS @import statements to avoid CORS on file://
+    import_stack: set[str] = set()
+
     def inline_imports(content: str) -> str:
         import_pattern = re.compile(r'@import\s+(?:url\(\s*)?["\']([^"\']+)["\'](?:\s*\))?;')
 
-        def inline_import(match: re.Match) -> str:
+        def inline_import(match: re.Match[str]) -> str:
+            import_path = match.group(1)
+
+            # Skip external @import (http/https) - leave marker for later step
+            if import_path.startswith(('http://', 'https://')):
+                return f'/* External @import "{import_path}" stripped for offline use */'
+
+            # Resolve relative import path
+            try:
+                import_file = css_dir / import_path
+
+                if not import_file.exists():
+                    return f'/* @import "{import_path}" - FILE NOT FOUND */\n'
+
+                with open(import_file, 'r', encoding='utf-8', errors='ignore') as f:
+                    imported_content = f.read()
+
+                # Prevent infinite recursion with depth tracking
+                if import_path in import_stack:
+                    return f'/* @import "{import_path}" - CIRCULAR REFERENCE SKIPPED */\n'
+
+                if len(import_stack) >= 10:
+                    return f'/* @import "{import_path}" - MAX DEPTH REACHED */\n'
+
+                # Recursively inline the imported CSS
+                import_stack.add(import_path)
+                inlined = inline_imports(imported_content)
+                import_stack.remove(import_path)
+
+                return f'/* INLINED: {import_path} */\n{inlined}'
+
+            except IOError as e:
+                return f'/* @import "{import_path}" - READ ERROR: {e} */\n'
+            except (ValueError, TypeError) as e:
+                return f'/* @import "{import_path}" - PATH ERROR: {e} */\n'
+            except Exception:
+                return match.group(0)
             import_path = match.group(1)
 
             # Skip external @import (http/https) - leave marker for later step

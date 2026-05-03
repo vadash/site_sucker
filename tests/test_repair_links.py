@@ -146,7 +146,7 @@ def test_repair_external_links_css_import_inlining(tmp_path: Path, capsys):
     updated_main = main_css.read_text()
     assert "@import" not in updated_main
     assert "body { color: red; }" in updated_main
-    assert "/* Inlined from colors.css */" in updated_main
+    assert "/* INLINED: colors.css */" in updated_main
 
 
 def test_repair_external_links_css_import_not_found(tmp_path: Path):

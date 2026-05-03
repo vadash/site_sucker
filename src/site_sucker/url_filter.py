@@ -100,7 +100,7 @@ def extract_internal_urls(
     """
     urls = set()
 
-    def _add_url(url_attr: str):
+    def _add_url(url_attr: str) -> None:
         """Add a URL to the links set after validation and filtering."""
         # Skip anchors, javascript, mailto, and data URLs
         if url_attr.startswith(("#", "javascript:", "mailto:", "data:")):

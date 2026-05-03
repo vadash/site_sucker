@@ -39,7 +39,7 @@ def invoke_site_mirror(
         List of failed URLs (if any).
     """
     output_dir = Path(output_dir)
-    failed_urls = []
+    failed_urls: list[str] = []
 
     # ── PASS 1: Full site mirror (unified crawler interface) ───────────────────────
     crawler_cls = BFSCrawler if resume else WgetCrawler

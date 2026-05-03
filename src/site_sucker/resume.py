@@ -89,7 +89,7 @@ def discover_css_imports(
     Returns:
         Set of absolute CSS URLs belonging to target_domain, after reject filtering.
     """
-    imports = set()
+    imports: set[str] = set()
 
     try:
         with open(css_file, "r", encoding="utf-8", errors="ignore") as f:
@@ -141,8 +141,8 @@ class ResumeCrawler:
         self.reject_domains = settings.reject_domains
 
         # State
-        self.visited = set()
-        self.queue = deque()
+        self.visited: set[str] = set()
+        self.queue: deque[tuple[str, int]] = deque()
         self.stats = {"downloaded": 0, "cached": 0, "failed": 0}
 
         # Configure requests session with retry logic
@@ -189,7 +189,7 @@ class ResumeCrawler:
             logger.error("Fetch failed: %s", e)
             return False
 
-    def run(self, seed_url: str):
+    def run(self, seed_url: str) -> None:
         """Execute the BFS crawl loop.
 
         Args:
@@ -249,7 +249,7 @@ class ResumeCrawler:
         failure_suffix = f" ({self.stats['failed']} failed)" if self.stats['failed'] > 0 else ""
         logger.info("[*] BFS complete: %d visited, %d downloaded%s", len(self.visited), self.stats['downloaded'], failure_suffix)
 
-    def process_discovered_links(self, current_url: str, local_path: Path, current_depth: int):
+    def process_discovered_links(self, current_url: str, local_path: Path, current_depth: int) -> None:
         """Extract links from HTML or CSS and add to queue.
 
         Args:
