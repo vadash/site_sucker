@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
-from site_sucker import mirror, settings
+from site_sucker import mirror, report, settings
 
 
 def normalize_url(url: str) -> str:
@@ -206,7 +206,7 @@ def main() -> None:
         )
 
         # Write report
-        mirror.write_site_report(
+        report.write_site_report(
             output_dir=output_path,
             start_time=start_time,
             failed_urls=failed_urls,
