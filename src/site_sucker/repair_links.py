@@ -9,6 +9,7 @@ import logging
 from pathlib import Path
 
 from site_sucker.file_iter import iter_html_files
+from site_sucker.progress import ProgressTracker
 from site_sucker.repair_css import process_css_files
 from site_sucker.repair_html import rewrite_external_html_links, rewrite_internal_html_links
 
@@ -86,11 +87,15 @@ def repair_external_links(
 
     # ── PART 1: Process HTML Files (BeautifulSoup) ────────────────────────────
     modified_count = 0
+    html_items = list(iter_html_files(output_dir))
+    progress = ProgressTracker(len(html_items))
 
-    for html_file, content in iter_html_files(output_dir):
+    for html_file, content in html_items:
         if rewrite_external_html_links(html_file, output_dir, content, url_map):
             modified_count += 1
+        progress.tick()
 
+    progress.finish()
     logger.info("  Rewrote external links in %d HTML file(s)", modified_count)
 
     # ── PART 2: Process CSS Files (Regex Pipeline) ─────────────────────────────

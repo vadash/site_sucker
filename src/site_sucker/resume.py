@@ -17,6 +17,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from site_sucker.paths import get_actual_save_path, url_to_filepath
+from site_sucker.progress import ProgressTracker
 from site_sucker.settings import Settings
 from site_sucker.url_filter import extract_internal_urls, should_reject_url
 
@@ -203,7 +204,7 @@ class ResumeCrawler:
             seed_url: Starting URL for the crawl.
         """
         self.queue.append((seed_url, 0))
-        iteration = 0
+        progress = ProgressTracker(0)  # total unknown at start
 
         logger.info(
             "[*] BFS crawl: %s (depth=%s)",
@@ -212,7 +213,6 @@ class ResumeCrawler:
         )
 
         while self.queue:
-            iteration += 1
             current_url, depth = self.queue.popleft()
 
             if current_url in self.visited:
@@ -232,6 +232,7 @@ class ResumeCrawler:
             if not file_existed:
                 parsed_url = urlparse(current_url)
                 short_path = parsed_url.path + (f"?{parsed_url.query}" if parsed_url.query else "")
+                progress.update(0)  # clear line
                 print(
                     f"\r  [{len(self.visited)} visited | {len(self.queue)} queued] GET {short_path}",
                     end="",

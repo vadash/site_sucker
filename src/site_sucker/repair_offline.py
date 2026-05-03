@@ -9,6 +9,7 @@ from typing import Any
 from bs4 import BeautifulSoup
 
 from site_sucker.file_iter import iter_html_files, write_if_changed
+from site_sucker.progress import ProgressTracker
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +168,7 @@ def repair_offline_html(output_dir: Path | str) -> int:
     logger.info("[4/4] Stripping online-only resources for offline browsing... (%d file(s))", total)
 
     modified_count = 0
+    progress = ProgressTracker(total)
 
     for processed, (html_file, content) in enumerate(html_items, start=1):
         # Parse with BeautifulSoup using lxml parser
@@ -200,10 +202,9 @@ def repair_offline_html(output_dir: Path | str) -> int:
             write_if_changed(html_file, content, cleaned_content)
             modified_count += 1
 
-        processed += 1
-        print(f"\r  [{processed}/{total}]", end="", flush=True)
+        progress.update(processed)
 
-    print()  # newline after progress counter
+    progress.finish()
 
     if modified_count > 0:
         logger.info("  Cleaned %d HTML file(s) for offline use", modified_count)

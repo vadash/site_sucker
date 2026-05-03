@@ -5,6 +5,8 @@ import re
 from pathlib import Path
 
 from site_sucker.file_iter import iter_css_files
+from site_sucker.paths import relative_depth
+from site_sucker.progress import ProgressTracker
 from site_sucker.replacement_pipeline import ReplacementStep, run_replacement_pipeline
 
 logger = logging.getLogger(__name__)
@@ -25,8 +27,7 @@ def build_css_replacement_steps(
     Returns:
         List of replacement steps.
     """
-    rel_from_root = css_dir.resolve().relative_to(output_dir.resolve())
-    depth = len(rel_from_root.parts) if str(rel_from_root) != "." else 0
+    depth = relative_depth(css_dir, output_dir)
     prefix = "../" * depth
 
     css_steps = []
@@ -151,7 +152,10 @@ def process_css_files(
     external_urls_stripped = 0
 
     # Always process CSS files for absolute path conversion
-    for css_file, _css_content in iter_css_files(output_dir):
+    css_items = list(iter_css_files(output_dir))
+    progress = ProgressTracker(len(css_items))
+
+    for css_file, _css_content in css_items:
         css_dir = css_file.parent
 
         # Build replacement steps for this specific CSS file
@@ -180,6 +184,10 @@ def process_css_files(
                     external_urls_stripped += 1
             except OSError:
                 pass
+
+        progress.tick()
+
+    progress.finish()
 
     if css_modified_count > 0:
         logger.info("  Processed %d CSS file(s)", css_modified_count)

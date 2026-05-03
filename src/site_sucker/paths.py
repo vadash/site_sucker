@@ -89,3 +89,24 @@ def get_actual_save_path(expected_path: Path) -> Path:
     if expected_path.suffix.lower() in KNOWN_EXTENSIONS:
         return expected_path
     return expected_path.with_name(expected_path.name + ".html")
+
+
+def relative_depth(file_path: Path, root_dir: Path) -> int:
+    """Calculate the directory depth of a file relative to a root directory.
+
+    Useful for building ``"../" * depth`` relative paths from a nested file
+    back to the root output directory.
+
+    Args:
+        file_path: Path to the file (can be absolute or relative).
+        root_dir: Root directory to calculate depth from.
+
+    Returns:
+        Number of directory levels between the file's parent and root_dir.
+        Returns 0 if the file is directly inside root_dir.
+    """
+    try:
+        rel_path = file_path.resolve().relative_to(root_dir.resolve())
+        return len(rel_path.parts) - 1 if str(rel_path) != "." else 0
+    except ValueError:
+        return 0

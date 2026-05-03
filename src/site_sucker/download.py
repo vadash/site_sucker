@@ -1,13 +1,13 @@
 """External media downloader using parallel wget subprocess calls."""
 
 import logging
-import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+from site_sucker.progress import ProgressTracker
 from site_sucker.settings import Settings
-from site_sucker.wget import build_wget_args, get_wget_path
+from site_sucker.wget import build_wget_args, get_clean_env, get_wget_path
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +37,7 @@ def download_external_media(
     logger.info("Downloading external media (parallel: %d)...", settings.parallel_downloads)
 
     # Disable proxies for subprocess calls
-    env = os.environ.copy()
-    for var in ["http_proxy", "https_proxy", "all_proxy", "HTTP_PROXY", "HTTPS_PROXY"]:
-        env.pop(var, None)
+    env = get_clean_env()
 
     wget_path = get_wget_path()
 
@@ -61,6 +59,7 @@ def download_external_media(
     logger.info("  Downloading %d external media file(s)...", total_urls)
 
     failed_urls = []
+    progress = ProgressTracker(total_urls)
 
     with ThreadPoolExecutor(max_workers=settings.parallel_downloads) as executor:
         futures = {
@@ -75,7 +74,6 @@ def download_external_media(
 
         for completed_count, future in enumerate(as_completed(futures), start=1):
             url = futures[future]
-            logger.info("  [%d/%d] %s", completed_count, total_urls, url)
 
             try:
                 result = future.result()
@@ -86,6 +84,10 @@ def download_external_media(
                         logger.warning("    wget error: %s", stderr.splitlines()[-1])
             except Exception:
                 failed_urls.append(url)
+
+            progress.update(completed_count)
+
+    progress.finish()
 
     if failed_urls:
         logger.warning("  %d download(s) failed.", len(failed_urls))

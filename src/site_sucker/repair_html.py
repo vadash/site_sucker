@@ -8,7 +8,8 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 
 from site_sucker.file_iter import iter_html_files, write_if_changed
-from site_sucker.paths import get_actual_save_path, url_to_filepath
+from site_sucker.paths import get_actual_save_path, relative_depth, url_to_filepath
+from site_sucker.progress import ProgressTracker
 from site_sucker.url_filter import extract_internal_urls
 
 logger = logging.getLogger(__name__)
@@ -105,13 +106,7 @@ def rewrite_external_html_links(
     soup = BeautifulSoup(content, "lxml")
 
     # Calculate relative path depth from this file to output root
-    html_dir = html_file.parent
-    try:
-        rel_path = html_dir.resolve().relative_to(output_dir.resolve())
-        depth = len(rel_path.parts) if str(rel_path) != "." else 0
-    except ValueError:
-        # html_dir is not relative to output_dir (shouldn't happen)
-        depth = 0
+    depth = relative_depth(html_file, output_dir)
 
     modified = False
 
@@ -168,19 +163,12 @@ def rewrite_internal_html_links(
     logger.info("[*] Rewriting internal links to local files...")
 
     modified_count = 0
+    html_items = list(iter_html_files(output_dir))
+    progress = ProgressTracker(len(html_items))
 
-    for html_file, content in iter_html_files(output_dir):
+    for html_file, content in html_items:
         # Parse with BeautifulSoup
         soup = BeautifulSoup(content, "lxml")
-
-        # Calculate relative path depth from this file to output root
-        html_dir = html_file.parent
-        try:
-            rel_path = html_dir.resolve().relative_to(output_dir.resolve())
-            len(rel_path.parts) if str(rel_path) != "." else 0
-        except ValueError:
-            # html_dir is not relative to output_dir (shouldn't happen)
-            pass
 
         # Construct the original base URL of this local HTML file
         try:
@@ -244,6 +232,10 @@ def rewrite_internal_html_links(
         if modified:
             write_if_changed(html_file, content, str(soup))
             modified_count += 1
+
+        progress.tick()
+
+    progress.finish()
 
     logger.info("  Rewrote internal links in %d HTML file(s)", modified_count)
     return modified_count

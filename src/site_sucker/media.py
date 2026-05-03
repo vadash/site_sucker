@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
 from site_sucker.file_iter import iter_css_files, iter_html_files
+from site_sucker.progress import ProgressTracker
 from site_sucker.settings import Settings
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,10 @@ def get_external_media(
     url_count = 0
 
     # ── PART 1: Scan HTML files with BeautifulSoup ─────────────────────────────
-    for _html_file, content in iter_html_files(output_dir):
+    html_items = list(iter_html_files(output_dir))
+    progress = ProgressTracker(len(html_items))
+
+    for _html_file, content in html_items:
         soup = BeautifulSoup(content, "lxml")
 
         # Scan all tags that can have media URLs
@@ -86,6 +90,10 @@ def get_external_media(
                 normalized_url = url.split("?")[0]
                 ext_urls.add(normalized_url)
 
+        progress.tick()
+
+    progress.finish()
+
     # ── PART 2: Scan CSS files for url() references ─────────────────────────────
     css_url_count = 0
     for _css_file, raw_css in iter_css_files(output_dir):
@@ -109,7 +117,6 @@ def get_external_media(
             normalized_url = url.split("?")[0]
             ext_urls.add(normalized_url)
 
-    url_count + css_url_count
     logger.info(
         "Scanned %d HTML URLs and %d CSS url() references, found %d unique external media URLs",
         url_count,
