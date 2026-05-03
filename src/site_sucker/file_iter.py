@@ -3,8 +3,8 @@
 Shared by media scanner, link repair, offline repair, and validation modules.
 """
 
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 from bs4 import BeautifulSoup
 
@@ -26,9 +26,9 @@ def iter_html_files(output_dir: Path) -> Iterator[tuple[Path, str]]:
 
     for html_file in html_files:
         try:
-            with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
+            with open(html_file, encoding="utf-8", errors="ignore") as f:
                 content = f.read()
-        except (IOError, OSError):
+        except OSError:
             continue
 
         if not content:
@@ -70,9 +70,9 @@ def iter_css_files(output_dir: Path) -> Iterator[tuple[Path, str]]:
 
     for css_file in css_files:
         try:
-            with open(css_file, "r", encoding="utf-8", errors="ignore") as f:
+            with open(css_file, encoding="utf-8", errors="ignore") as f:
                 content = f.read()
-        except (IOError, OSError):
+        except OSError:
             continue
 
         if not content:

@@ -3,8 +3,8 @@
 Shared by resume crawler, media scanner, and wget argument builder.
 """
 
+from collections.abc import Iterable
 from urllib.parse import urljoin, urlparse
-from typing import Iterable
 
 from bs4 import BeautifulSoup
 
@@ -44,16 +44,15 @@ def should_reject_url(
         return True
 
     # Check reject patterns (substring match)
-    if reject_patterns:
-        if any(pattern in url for pattern in reject_patterns):
-            return True
+    if reject_patterns and any(pattern in url for pattern in reject_patterns):
+        return True
 
     # Check reject domains (exact hostname match)
-    if reject_domains and parsed.hostname:
-        if any(parsed.hostname == domain for domain in reject_domains):
-            return True
-
-    return False
+    return bool(
+        reject_domains
+        and parsed.hostname
+        and any(parsed.hostname == domain for domain in reject_domains)
+    )
 
 
 # Tags and attributes to scan for navigation links (e.g., <a href>)

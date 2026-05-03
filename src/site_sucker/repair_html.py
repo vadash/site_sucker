@@ -88,7 +88,6 @@ def rewrite_external_html_links(
     html_file: Path,
     output_dir: Path,
     content: str,
-    media_dir: Path,
     url_map: dict[str, str],
 ) -> bool:
     """Rewrite external URLs and strip CORS attributes in HTML file using BeautifulSoup.
@@ -97,7 +96,6 @@ def rewrite_external_html_links(
         html_file: Path to the HTML file.
         output_dir: Root output directory.
         content: HTML content string.
-        media_dir: External media download directory.
         url_map: Mapping of external URLs to local filenames.
 
     Returns:
@@ -179,10 +177,10 @@ def rewrite_internal_html_links(
         html_dir = html_file.parent
         try:
             rel_path = html_dir.resolve().relative_to(output_dir.resolve())
-            depth = len(rel_path.parts) if str(rel_path) != "." else 0
+            len(rel_path.parts) if str(rel_path) != "." else 0
         except ValueError:
             # html_dir is not relative to output_dir (shouldn't happen)
-            depth = 0
+            pass
 
         # Construct the original base URL of this local HTML file
         try:

@@ -6,9 +6,9 @@ file structure, it is automatically reverted and logged for debugging.
 """
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
 
 from site_sucker.file_iter import write_if_changed
 
@@ -127,14 +127,14 @@ def _log_failure(
             f.write(f"Pattern: {step.pattern.pattern}\n")
             f.write(f"Flags: {step.flags}\n")
         else:
-            f.write(f"Pattern: <callable>\n")
+            f.write("Pattern: <callable>\n")
         if step.replacement:
             if callable(step.replacement):
-                f.write(f"Replacement: <callable>\n")
+                f.write("Replacement: <callable>\n")
             else:
                 f.write(f"Replacement: {step.replacement}\n")
         else:
-            f.write(f"Replacement: <none - callable pattern>\n")
+            f.write("Replacement: <none - callable pattern>\n")
 
     return failure_dir
 
@@ -162,9 +162,9 @@ def run_replacement_pipeline(
         Number of steps that were successfully applied (changed content and passed validation).
     """
     try:
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        with open(file_path, encoding="utf-8", errors="ignore") as f:
             original_content = f.read()
-    except (IOError, OSError):
+    except OSError:
         return 0
 
     if not original_content:

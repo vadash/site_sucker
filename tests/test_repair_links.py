@@ -3,8 +3,6 @@
 import logging
 from pathlib import Path
 
-import pytest
-
 from site_sucker import repair_links
 
 
@@ -92,7 +90,7 @@ def test_repair_external_links_css_absolute_paths(tmp_path: Path, sample_css: st
     css_file.write_text(sample_css)
 
     # No external URLs, but CSS should still be processed for absolute paths
-    result = repair_links.repair_external_links(
+    repair_links.repair_external_links(
         tmp_path,
         tmp_path / "images",
         set(),

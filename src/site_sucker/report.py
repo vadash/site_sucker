@@ -73,7 +73,7 @@ def write_site_report(
                 for url in failed_urls:
                     f.write(f"{url}\n")
             logger.info("  Failed URLs logged to: %s", fail_log_path)
-        except IOError as e:
+        except OSError as e:
             logger.warning("  Warning: Could not write failures.log: %s", e)
     else:
         logger.info("")

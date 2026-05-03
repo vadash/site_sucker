@@ -1,6 +1,7 @@
 """CLI entry point for SiteSucker."""
 
 import argparse
+import contextlib
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -165,13 +166,11 @@ def resolve_config(args: argparse.Namespace, cfg: settings.Settings) -> tuple[st
 
     if not url:
         # Interactive mode
-        output_root = Path(cfg.output_root)
+        Path(cfg.output_root)
 
         # Need URL first to determine defaults
-        try:
-            test_url = urlparse(url)
-        except Exception:
-            test_url = None
+        with contextlib.suppress(Exception):
+            urlparse(url)
 
         url, output_dir, depth, parallel = interactive_prompt(
             default_parallel=cfg.parallel_downloads,
@@ -188,10 +187,7 @@ def resolve_config(args: argparse.Namespace, cfg: settings.Settings) -> tuple[st
             raise SystemExit(1) from e
 
         # Determine output directory
-        if args.output_dir:
-            output_dir = args.output_dir
-        else:
-            output_dir = Path(cfg.output_root) / target_domain
+        output_dir = args.output_dir or Path(cfg.output_root) / target_domain
 
     # Normalize URL scheme
     url = normalize_url(url)

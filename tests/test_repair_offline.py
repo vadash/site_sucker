@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from site_sucker import repair_offline
 
 

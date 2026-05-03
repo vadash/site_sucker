@@ -128,7 +128,7 @@ def _expand_reject_expression(pattern: str) -> list[str]:
     for match in reversed(matches):
         expr = match.group(1)
         start, end = match.span()
-        full_match = match.group(0)  # Includes braces: {expr}
+        match.group(0)  # Includes braces: {expr}
 
         new_results = []
         for result in results:
@@ -192,7 +192,7 @@ def _parse_range_expression(expr: str) -> list[str]:
     # Check for exclusions (%)
     if '%' in expr:
         range_part, exclude_part = expr.split('%', 1)
-        excludes = set(e.strip() for e in exclude_part.split(',') if e.strip())
+        excludes = {e.strip() for e in exclude_part.split(',') if e.strip()}
     else:
         range_part = expr
         excludes = set()
@@ -315,7 +315,7 @@ def load_settings(settings_path: Path | str | None = None) -> Settings:
 
     if settings_path.exists():
         try:
-            with open(settings_path, "r", encoding="utf-8") as f:
+            with open(settings_path, encoding="utf-8") as f:
                 content = f.read()
 
             # Check if this is a JSONC file (has comments)
@@ -328,7 +328,7 @@ def load_settings(settings_path: Path | str | None = None) -> Settings:
             user_settings = {k: v for k, v in user_settings.items() if not k.startswith('_')}
 
             settings.update(user_settings)
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning("Failed to load settings from %s: %s", settings_path, e)
             logger.info("Using default settings.")
     else:

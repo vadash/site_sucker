@@ -3,8 +3,6 @@
 from dataclasses import replace
 from pathlib import Path
 
-import pytest
-
 from site_sucker import media
 from site_sucker.settings import Settings
 

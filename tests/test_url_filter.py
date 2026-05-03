@@ -1,8 +1,6 @@
 """Tests for url_filter module (shared URL extraction)."""
 
-from pathlib import Path
 
-import pytest
 from bs4 import BeautifulSoup
 
 from site_sucker.url_filter import (

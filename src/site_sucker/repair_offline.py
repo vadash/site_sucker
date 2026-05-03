@@ -159,9 +159,8 @@ def repair_offline_html(output_dir: Path | str) -> int:
     logger.info("[4/4] Stripping online-only resources for offline browsing... (%d file(s))", total)
 
     modified_count = 0
-    processed = 0
 
-    for html_file, content in html_items:
+    for processed, (html_file, content) in enumerate(html_items, start=1):
         # Parse with BeautifulSoup using lxml parser
         soup = BeautifulSoup(content, 'lxml')
 

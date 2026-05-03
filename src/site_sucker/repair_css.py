@@ -51,7 +51,7 @@ def build_css_replacement_steps(
                 if not import_file.exists():
                     return f'/* @import "{import_path}" - FILE NOT FOUND */\n'
 
-                with open(import_file, 'r', encoding='utf-8', errors='ignore') as f:
+                with open(import_file, encoding='utf-8', errors='ignore') as f:
                     imported_content = f.read()
 
                 # Prevent infinite recursion with depth tracking
@@ -68,7 +68,7 @@ def build_css_replacement_steps(
 
                 return f'/* INLINED: {import_path} */\n{inlined}'
 
-            except IOError as e:
+            except OSError as e:
                 return f'/* @import "{import_path}" - READ ERROR: {e} */\n'
             except (ValueError, TypeError) as e:
                 return f'/* @import "{import_path}" - PATH ERROR: {e} */\n'
@@ -86,11 +86,11 @@ def build_css_replacement_steps(
 
                 if import_file.is_file():
                     try:
-                        with open(import_file, "r", encoding="utf-8", errors="ignore") as f:
+                        with open(import_file, encoding="utf-8", errors="ignore") as f:
                             imported_content = f.read()
 
                         return f'/* Inlined from {import_path} */\n{imported_content}\n'
-                    except (IOError, OSError) as e:
+                    except OSError as e:
                         return f'/* @import "{import_path}" - READ ERROR: {e} */\n'
                 else:
                     return f'/* @import "{import_path}" - FILE NOT FOUND */\n'
@@ -177,7 +177,7 @@ def process_css_files(
     external_urls_stripped = 0
 
     # Always process CSS files for absolute path conversion
-    for css_file, css_content in iter_css_files(output_dir):
+    for css_file, _css_content in iter_css_files(output_dir):
         css_dir = css_file.parent
 
         # Build replacement steps for this specific CSS file
@@ -198,7 +198,7 @@ def process_css_files(
             # Count specific transformations for reporting
             # Note: run_replacement_pipeline already wrote the file, so we read it back
             try:
-                with open(css_file, "r", encoding="utf-8", errors="ignore") as f:
+                with open(css_file, encoding="utf-8", errors="ignore") as f:
                     updated_content = f.read()
 
                 if 'Google Fonts @import stripped' in updated_content:
@@ -206,7 +206,7 @@ def process_css_files(
 
                 if 'External URL stripped for offline use' in updated_content:
                     external_urls_stripped += 1
-            except (IOError, OSError):
+            except OSError:
                 pass
 
     if css_modified_count > 0:

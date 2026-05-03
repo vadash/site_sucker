@@ -3,9 +3,6 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from site_sucker import mirror
 from site_sucker.settings import Settings
 from site_sucker.wget import build_wget_args
 

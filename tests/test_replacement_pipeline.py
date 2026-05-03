@@ -3,8 +3,6 @@
 import re
 from pathlib import Path
 
-import pytest
-
 from site_sucker.replacement_pipeline import ReplacementStep, run_replacement_pipeline
 
 

@@ -73,10 +73,8 @@ def download_external_media(
             for url in url_list
         }
 
-        completed_count = 0
-        for future in as_completed(futures):
+        for completed_count, future in enumerate(as_completed(futures), start=1):
             url = futures[future]
-            completed_count += 1
             logger.info("  [%d/%d] %s", completed_count, total_urls, url)
 
             try:

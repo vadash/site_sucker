@@ -12,16 +12,15 @@ from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 import requests
+from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from bs4 import BeautifulSoup
-
 from site_sucker.paths import get_actual_save_path, url_to_filepath
 from site_sucker.settings import Settings
+from site_sucker.url_filter import extract_internal_urls, should_reject_url
 
 logger = logging.getLogger(__name__)
-from site_sucker.url_filter import extract_internal_urls, should_reject_url
 
 
 def discover_links(
@@ -47,9 +46,9 @@ def discover_links(
         Set of absolute URLs belonging to target_domain, after reject filtering.
     """
     try:
-        with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
+        with open(html_file, encoding="utf-8", errors="ignore") as f:
             content = f.read()
-    except (IOError, OSError):
+    except OSError:
         return set()
 
     if not content:
@@ -92,9 +91,9 @@ def discover_css_imports(
     imports: set[str] = set()
 
     try:
-        with open(css_file, "r", encoding="utf-8", errors="ignore") as f:
+        with open(css_file, encoding="utf-8", errors="ignore") as f:
             content = f.read()
-    except (IOError, OSError):
+    except OSError:
         return imports
 
     if not content:
@@ -287,7 +286,6 @@ def crawl_loop(
     output_dir: Path,
     target_domain: str,
     settings: Settings,
-    wget_path: Path | None = None,
 ) -> None:
     """Entry point for the resume crawler.
 
@@ -296,7 +294,6 @@ def crawl_loop(
         output_dir: Output directory for downloaded files.
         target_domain: Primary domain being mirrored.
         settings: Settings instance.
-        wget_path: Ignored (kept for backwards compatibility).
     """
     crawler = ResumeCrawler(output_dir, target_domain, settings)
     crawler.run(url)

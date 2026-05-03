@@ -222,7 +222,6 @@ def test_get_clean_env_preserves_other_env(monkeypatch):
 
 def test_get_clean_env_returns_copy():
     """Test that get_clean_env returns a copy of the environment."""
-    import os
 
     env1 = wget.get_clean_env()
     env2 = wget.get_clean_env()

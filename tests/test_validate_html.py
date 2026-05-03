@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from site_sucker.validate_html import print_validation_results, validate_html_files, validate_html_string
+from site_sucker.validate_html import (
+    print_validation_results,
+    validate_html_files,
+    validate_html_string,
+)
 
 
 def test_validate_html_valid_page(tmp_path: Path):

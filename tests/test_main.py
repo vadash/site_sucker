@@ -2,7 +2,6 @@
 
 import argparse
 from pathlib import Path
-from urllib.parse import urlparse
 
 import pytest
 
@@ -269,7 +268,8 @@ class TestResolveConfig:
         # Mock input to provide URL, output dir, depth, and parallel
         # The function prompts for these values in order
         inputs = ["https://example.com", "", "", ""]
-        mock_input = lambda x: inputs.pop(0) if inputs else ""
+        def mock_input(x):
+            return inputs.pop(0) if inputs else ""
         monkeypatch.setattr("builtins.input", mock_input)
 
         url, output_path, target_domain, _ = resolve_config(args, cfg)

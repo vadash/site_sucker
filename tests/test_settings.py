@@ -4,11 +4,8 @@ import json
 import logging
 from pathlib import Path
 
-import pytest
-
 from site_sucker import settings
 from site_sucker.settings import Settings
-
 
 # Range Expression Tests
 

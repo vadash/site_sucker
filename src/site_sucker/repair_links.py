@@ -9,7 +9,7 @@ import logging
 from pathlib import Path
 
 from site_sucker.file_iter import iter_html_files
-from site_sucker.repair_css import build_css_replacement_steps, process_css_files
+from site_sucker.repair_css import process_css_files
 from site_sucker.repair_html import rewrite_external_html_links, rewrite_internal_html_links
 
 logger = logging.getLogger(__name__)
@@ -88,7 +88,7 @@ def repair_external_links(
     modified_count = 0
 
     for html_file, content in iter_html_files(output_dir):
-        if rewrite_external_html_links(html_file, output_dir, content, media_dir, url_map):
+        if rewrite_external_html_links(html_file, output_dir, content, url_map):
             modified_count += 1
 
     logger.info("  Rewrote external links in %d HTML file(s)", modified_count)

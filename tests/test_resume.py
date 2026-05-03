@@ -2,10 +2,7 @@
 
 from pathlib import Path
 
-import pytest
-
 from site_sucker.resume import (
-    crawl_loop,
     discover_css_imports,
     discover_links,
     get_actual_save_path,
