@@ -95,6 +95,28 @@ def test_file_exists_on_disk_html_appended(tmp_path):
     assert file_exists_on_disk(base_path) is True
 
 
+def test_file_exists_on_disk_css_double_extension(tmp_path):
+    """Test file existence check when wget appends .css on top of query-string filename.
+
+    Wget with --adjust-extension saves "responsive.css?assets_version=933" as
+    "responsive.css@assets_version=933.css" (double extension).
+    """
+    test_file = tmp_path / "responsive.css@assets_version=933.css"
+    test_file.write_text("body { color: red; }")
+
+    expected_path = tmp_path / "responsive.css@assets_version=933"
+    assert file_exists_on_disk(expected_path) is True
+
+
+def test_file_exists_on_disk_js_double_extension(tmp_path):
+    """Test file existence check when wget appends .js on top of query-string filename."""
+    test_file = tmp_path / "core.js@assets_version=933.js"
+    test_file.write_text("console.log('hi');")
+
+    expected_path = tmp_path / "core.js@assets_version=933"
+    assert file_exists_on_disk(expected_path) is True
+
+
 def test_file_exists_on_disk_not_found(tmp_path):
     """Test file existence check when file doesn't exist."""
     base_path = tmp_path / "nonexistent"
@@ -118,6 +140,33 @@ def test_resolve_local_file_html_appended(tmp_path):
     base_path = tmp_path / "page"
     result = resolve_local_file(base_path, tmp_path)
     assert result == test_file
+
+
+def test_resolve_local_file_css_double_extension(tmp_path):
+    """Test resolve_local_file finds .css appended version (wget double extension).
+
+    Wget with --adjust-extension saves "style.css?ver=123" as
+    "style.css@ver=123.css" — the code expects "style.css@ver=123".
+    """
+    actual_file = tmp_path / "responsive.css@assets_version=933.css"
+    actual_file.write_text("body { color: red; }")
+
+    expected_path = tmp_path / "responsive.css@assets_version=933"
+    result = resolve_local_file(expected_path, tmp_path)
+    assert result == actual_file
+
+
+def test_resolve_local_file_exact_match_preferred_over_double_extension(tmp_path):
+    """Test that exact path match is preferred over double-extension match."""
+    exact_file = tmp_path / "style.css@ver=123"
+    exact_file.write_text("/* exact */")
+
+    double_ext = tmp_path / "style.css@ver=123.css"
+    double_ext.write_text("/* double */")
+
+    expected_path = tmp_path / "style.css@ver=123"
+    result = resolve_local_file(expected_path, tmp_path)
+    assert result == exact_file
 
 
 def test_resolve_local_file_not_found(tmp_path):

@@ -55,36 +55,47 @@ def url_to_filepath(url: str, output_dir: Path) -> Path:
     return full_path
 
 
+def _check_path_exists(path: Path) -> bool:
+    """Check if a path exists and is a file."""
+    return path.exists() and path.is_file()
+
+
+# Extensions wget may append via --adjust-extension based on Content-Type.
+# .html is the most common (text/html), but wget also appends the actual
+# content-type extension on top of query-string filenames, producing
+# double extensions like "style.css@ver=123.css".
+_ADJUST_EXTENSION_SUFFIXES = (".html", ".htm", ".css", ".js", ".json", ".xml")
+
+
 def file_exists_on_disk(expected_path: Path) -> bool:
     """Check if a file exists on disk, accounting for wget's --adjust-extension behavior.
 
-    Wget appends .html to files without extensions when Content-Type is text/html.
-    We check both the exact path and the .html-appended variant.
+    Wget appends extensions based on Content-Type. For .php URLs it adds .html,
+    but for CSS/JS URLs with query strings it produces double extensions like
+    "style.css@ver=123.css". We check the exact path plus all plausible suffixes.
 
     Args:
         expected_path: Expected path from url_to_filepath().
 
     Returns:
-        True if file exists (with or without .html suffix).
+        True if file exists (with or without an appended extension).
     """
-    # Check exact match first
-    if expected_path.exists() and expected_path.is_file():
+    if _check_path_exists(expected_path):
         return True
 
-    # Check with .html appended (wget's adjust-extension behavior)
-    html_path = Path(str(expected_path) + ".html")
-    if html_path.exists() and html_path.is_file():
-        return True
+    for suffix in _ADJUST_EXTENSION_SUFFIXES:
+        if _check_path_exists(Path(str(expected_path) + suffix)):
+            return True
 
     return False
 
 
 def resolve_local_file(expected_path: Path, output_dir: Path) -> Path | None:
-    """Resolve which file actually exists on disk (with or without .html suffix).
+    """Resolve which file actually exists on disk (accounting for --adjust-extension).
 
-    Checks three locations in order:
+    Checks locations in order:
     1. Exact expected path
-    2. With .html appended (wget's --adjust-extension behavior)
+    2. With content-type extension appended (wget's --adjust-extension behavior)
     3. Flattened to output_dir root (wget without -r saves files flat)
 
     Args:
@@ -94,19 +105,18 @@ def resolve_local_file(expected_path: Path, output_dir: Path) -> Path | None:
     Returns:
         Actual file path if it exists, None otherwise.
     """
-    # Check exact match first
-    if expected_path.exists() and expected_path.is_file():
+    if _check_path_exists(expected_path):
         return expected_path
 
-    # Check with .html appended
-    html_path = Path(str(expected_path) + ".html")
-    if html_path.exists() and html_path.is_file():
-        return html_path
+    for suffix in _ADJUST_EXTENSION_SUFFIXES:
+        suffixed = Path(str(expected_path) + suffix)
+        if _check_path_exists(suffixed):
+            return suffixed
 
     # Fallback: check flattened path (wget without -r saves files at root)
     # e.g., expected images/art/foo.jpg -> check output_dir/foo.jpg
     flat_path = output_dir / expected_path.name
-    if flat_path.exists() and flat_path.is_file():
+    if _check_path_exists(flat_path):
         return flat_path
 
     return None
