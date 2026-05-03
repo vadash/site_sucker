@@ -69,6 +69,13 @@ def invoke_site_mirror(
 
     print(f"\nDownloading external media (parallel: {settings['ParallelDownloads']})...")
 
+    # Disable proxies for subprocess calls
+    env = os.environ.copy()
+    for var in ["http_proxy", "https_proxy", "all_proxy", "HTTP_PROXY", "HTTPS_PROXY"]:
+        env.pop(var, None)
+
+    wget_path = get_wget_path()
+
     pass2_args = build_wget_args(
         settings,
         media_dir,

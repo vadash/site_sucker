@@ -1,13 +1,72 @@
 """Offline HTML cleaner - strips online-only resources using BeautifulSoup."""
 
 import re
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from bs4 import BeautifulSoup
 
+from site_sucker.file_iter import iter_html_files
+
+
+@dataclass
+class RemovalRule:
+    """Rule for removing DOM nodes.
+
+    Attributes:
+        tag: HTML tag name to match.
+        attrs: Dictionary of attributes to match (passed to BeautifulSoup's find_all).
+        check_content: Optional regex to match against tag text content.
+        check_nested: Optional nested tag spec (tag, attrs) to check before removing.
+    """
+    tag: str
+    attrs: dict[str, Any] | None = None
+    check_content: re.Pattern[str] | None = None
+    check_nested: tuple[str, dict[str, Any]] | None = None
+
+
+# Data-driven removal rules for online-only resources
+_REMOVAL_RULES = [
+    # MediaWiki load.php resources
+    RemovalRule(tag='link', attrs={'rel': 'stylesheet', 'href': re.compile(r'load\.php')}),
+    RemovalRule(tag='script', attrs={'src': re.compile(r'load\.php')}),
+
+    # Network hints
+    RemovalRule(tag='link', attrs={'rel': 'preconnect'}),
+    RemovalRule(tag='link', attrs={'rel': 'dns-prefetch'}),
+
+    # Metadata links
+    RemovalRule(tag='link', attrs={'rel': 'EditURI'}),
+    RemovalRule(tag='link', attrs={'type': re.compile(r'application/(atom|rss)\+xml')}),
+
+    # Analytics and tracking
+    RemovalRule(tag='script', check_content=re.compile(r'_paq')),
+    RemovalRule(tag='script', attrs={'src': re.compile(r'google-analytics\.com', re.IGNORECASE)}),
+    RemovalRule(tag='script', check_content=re.compile(r'google-analytics\.com', re.IGNORECASE)),
+
+    # Noscript tracking pixels
+    RemovalRule(
+        tag='noscript',
+        check_nested=('img', {'src': re.compile(r'(matomo|analytics|doubleclick|google-analytics)', re.IGNORECASE)})
+    ),
+
+    # FontAwesome CDN
+    RemovalRule(tag='script', attrs={'src': re.compile(r'9a832b96e0\.js')}),
+    RemovalRule(tag='link', attrs={'href': re.compile(r'use\.fontawesome\.com', re.IGNORECASE)}),
+    RemovalRule(tag='script', check_content=re.compile(r'FontAwesomeCdnConfig')),
+
+    # Google Analytics inline calls
+    RemovalRule(tag='script', check_content=re.compile(r"""ga\(['\"]create['""]""")),
+    RemovalRule(tag='script', check_content=re.compile(r"""ga\(['\"]send['""]""")),
+
+    # phpBB navigation links
+    RemovalRule(tag='a', attrs={'href': re.compile(r'(posting|tradegold|memberlist|search|ucp|mcp)\.php')}),
+]
+
 
 def _remove_dom_nodes(soup: BeautifulSoup) -> int:
-    """Remove unwanted DOM nodes using BeautifulSoup.
+    """Remove unwanted DOM nodes using data-driven rules.
 
     Args:
         soup: BeautifulSoup object representing the HTML document.
@@ -17,82 +76,23 @@ def _remove_dom_nodes(soup: BeautifulSoup) -> int:
     """
     removed_count = 0
 
-    # Remove MediaWiki load.php stylesheets
-    for tag in soup.find_all('link', rel='stylesheet', href=re.compile(r'load\.php')):
-        tag.decompose()
-        removed_count += 1
+    for rule in _REMOVAL_RULES:
+        # Find all tags matching the rule
+        tags = soup.find_all(rule.tag, **(rule.attrs or {}))
 
-    # Remove MediaWiki load.php scripts
-    for tag in soup.find_all('script', src=re.compile(r'load\.php')):
-        tag.decompose()
-        removed_count += 1
+        for tag in tags:
+            # Check content regex if specified
+            if rule.check_content and not rule.check_content.search(tag.string or ''):
+                continue
 
-    # Remove preconnect hints
-    for tag in soup.find_all('link', rel='preconnect'):
-        tag.decompose()
-        removed_count += 1
+            # Check nested tag condition if specified
+            if rule.check_nested:
+                nested_tag, nested_attrs = rule.check_nested
+                if not tag.find(nested_tag, **nested_attrs):
+                    continue
 
-    # Remove dns-prefetch hints
-    for tag in soup.find_all('link', rel='dns-prefetch'):
-        tag.decompose()
-        removed_count += 1
-
-    # Remove EditURI link
-    for tag in soup.find_all('link', rel='EditURI'):
-        tag.decompose()
-        removed_count += 1
-
-    # Remove RSS/Atom feed links
-    for tag in soup.find_all('link', type=re.compile(r'application/(atom|rss)\+xml')):
-        tag.decompose()
-        removed_count += 1
-
-    # Remove Matomo analytics scripts (by content)
-    for tag in soup.find_all('script', string=re.compile(r'_paq')):
-        tag.decompose()
-        removed_count += 1
-
-    # Remove Google Analytics bootstrap scripts (by src or content)
-    for tag in soup.find_all('script', src=re.compile(r'google-analytics\.com', re.IGNORECASE)):
-        tag.decompose()
-        removed_count += 1
-    for tag in soup.find_all('script', string=re.compile(r'google-analytics\.com', re.IGNORECASE)):
-        tag.decompose()
-        removed_count += 1
-
-    # Remove noscript tracking pixels
-    for tag in soup.find_all('noscript'):
-        if tag.find('img', src=re.compile(r'(matomo|analytics|doubleclick|google-analytics)', re.IGNORECASE)):
             tag.decompose()
             removed_count += 1
-
-    # Remove FontAwesome CDN loader script
-    for tag in soup.find_all('script', src=re.compile(r'9a832b96e0\.js')):
-        tag.decompose()
-        removed_count += 1
-
-    # Remove FontAwesome CDN link tags
-    for tag in soup.find_all('link', href=re.compile(r'use\.fontawesome\.com', re.IGNORECASE)):
-        tag.decompose()
-        removed_count += 1
-
-    # Remove scripts with FontAwesome CDN config
-    for tag in soup.find_all('script', string=re.compile(r'FontAwesomeCdnConfig')):
-        tag.decompose()
-        removed_count += 1
-
-    # Remove scripts with Google Analytics calls
-    for tag in soup.find_all('script', string=re.compile(r"""ga\(['\"]create['""]""")):
-        tag.decompose()
-        removed_count += 1
-    for tag in soup.find_all('script', string=re.compile(r"""ga\(['\"]send['""]""")):
-        tag.decompose()
-        removed_count += 1
-
-    # Remove phpBB links
-    for tag in soup.find_all('a', href=re.compile(r'(posting|tradegold|memberlist|search|ucp|mcp)\.php')):
-        tag.decompose()
-        removed_count += 1
 
     return removed_count
 
@@ -147,19 +147,9 @@ def repair_offline_html(output_dir: Path | str) -> int:
 
     print(f"\n[4/4] Stripping online-only resources for offline browsing...")
 
-    html_files = list(output_dir.rglob("*.html")) + list(output_dir.rglob("*.htm"))
     modified_count = 0
 
-    for html_file in html_files:
-        try:
-            with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
-                content = f.read()
-        except (IOError, OSError):
-            continue
-
-        if not content:
-            continue
-
+    for html_file, content in iter_html_files(output_dir):
         # Parse with BeautifulSoup using lxml parser
         soup = BeautifulSoup(content, 'lxml')
 

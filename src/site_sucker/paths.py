@@ -6,6 +6,14 @@ Shared by resume crawler and link repair modules.
 from pathlib import Path
 from urllib.parse import urlparse
 
+# Known file extensions that should not have .html appended
+KNOWN_EXTENSIONS = {
+    ".css", ".js", ".html", ".htm", ".json", ".xml",
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".bmp",
+    ".woff", ".woff2", ".ttf", ".eot", ".otf",
+    ".mp4", ".webm", ".avi", ".mkv", ".mov", ".mp3", ".pdf"
+}
+
 
 def url_to_filepath(url: str, output_dir: Path) -> Path:
     """Convert a URL to its expected local file path.
@@ -56,12 +64,6 @@ def get_actual_save_path(expected_path: Path) -> Path:
     Returns:
         Final save path with .html appended if needed.
     """
-    known_extensions = {
-        ".css", ".js", ".html", ".htm", ".json", ".xml",
-        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".bmp",
-        ".woff", ".woff2", ".ttf", ".eot", ".otf",
-        ".mp4", ".webm", ".avi", ".mkv", ".mov", ".mp3", ".pdf"
-    }
-    if expected_path.suffix.lower() in known_extensions:
+    if expected_path.suffix.lower() in KNOWN_EXTENSIONS:
         return expected_path
     return expected_path.with_name(expected_path.name + ".html")

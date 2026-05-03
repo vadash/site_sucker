@@ -5,6 +5,8 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup
 
+from site_sucker.file_iter import iter_html_files
+
 # Control characters that should never appear in valid HTML content.
 # Excludes: tab (0x09), newline (0x0A), carriage return (0x0D).
 # Includes: DEL (0x7F) and C0 controls (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F).
@@ -108,7 +110,6 @@ def validate_html_files(output_dir: Path | str) -> dict[str, list[str]]:
         }
     """
     output_dir = Path(output_dir)
-    html_files = list(output_dir.rglob("*.html")) + list(output_dir.rglob("*.htm"))
 
     results = {
         "missing_head": [],
@@ -118,16 +119,7 @@ def validate_html_files(output_dir: Path | str) -> dict[str, list[str]]:
         "all_valid": True,
     }
 
-    for html_file in html_files:
-        try:
-            with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
-                raw = f.read()
-        except IOError:
-            continue
-
-        if not raw:
-            continue
-
+    for html_file, raw in iter_html_files(output_dir):
         # Use the shared validation function
         validation = validate_html_string(raw)
 

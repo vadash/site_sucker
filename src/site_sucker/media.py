@@ -7,6 +7,8 @@ from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 
+from site_sucker.file_iter import iter_html_files, iter_css_files
+
 
 def get_external_media(
     output_dir: Path | str,
@@ -42,22 +44,10 @@ def get_external_media(
     media_regex = re.compile(rf"(?i)({'|'.join(escaped_exts)})(\?.*)?$")
 
     url_count = 0
-    html_files = list(output_dir.rglob("*.html")) + list(output_dir.rglob("*.htm"))
-    css_files = list(output_dir.rglob("*.css"))
 
     # ── PART 1: Scan HTML files with BeautifulSoup ─────────────────────────────
-    for html_file in html_files:
-        try:
-            with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
-                raw = f.read()
-        except IOError:
-            continue
-
-        if not raw:
-            continue
-
-        # Parse HTML with BeautifulSoup
-        soup = BeautifulSoup(raw, 'lxml')
+    for html_file, content in iter_html_files(output_dir):
+        soup = BeautifulSoup(content, 'lxml')
 
         # Scan all tags that can have media URLs
         for tag in soup.find_all(['img', 'script', 'link', 'video', 'audio', 'source']):
@@ -95,16 +85,7 @@ def get_external_media(
 
     # ── PART 2: Scan CSS files for url() references ─────────────────────────────
     css_url_count = 0
-    for css_file in css_files:
-        try:
-            with open(css_file, "r", encoding="utf-8", errors="ignore") as f:
-                raw_css = f.read()
-        except IOError:
-            continue
-
-        if not raw_css:
-            continue
-
+    for css_file, raw_css in iter_css_files(output_dir):
         for match in css_url_pattern.finditer(raw_css):
             css_url_count += 1
             url = match.group(1)
