@@ -1,5 +1,7 @@
 """Tests for HTML validation functionality."""
 
+from pathlib import Path
+
 import pytest
 
 from site_sucker.validate_html import print_validation_results, validate_html_files, validate_html_string

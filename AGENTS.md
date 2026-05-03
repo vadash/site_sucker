@@ -109,13 +109,13 @@ When resuming an interrupted download, SiteSucker can use a Python-based BFS cra
 
 ```bash
 # Run all tests
-pytest
+uv run pytest
 
 # With coverage
-pytest --cov=site_sucker
+uv run pytest --cov=site_sucker
 
 # Specific module
-pytest tests/test_media.py
+uv run pytest tests/test_media.py
 ```
 
 ### Test Patterns
@@ -194,12 +194,16 @@ When fixing bugs:
 
 ### Running Python
 
-- **System `python`/`python3` does NOT work** — Windows App Execution Aliases intercept it and show a Store prompt.
-- **`uv run python` fails** — the editable install is marked `--no-build`.
-- **Correct path**: `/.venv/Scripts/python.exe` (relative to project root).
-- For inline scripts: `<project-root>/.venv/Scripts/python.exe -c "..."`
-- For tests: `<project-root>/.venv/Scripts/python.exe -m pytest`
-- **Temp files**: `curl -o /tmp/file` on Windows Git Bash saves to `C:/Users/<user>/AppData/Local/Temp/file`, not `/tmp/`. Use the Windows path when reading from Python.
+**System `python`/`python3` does NOT work** — Windows App Execution Aliases intercept it and show a Store prompt.
+
+**Use `uv run`** for all commands:
+- `uv run python -m site_sucker` - Run the tool
+- `uv run pytest` - Run tests
+- `uv run site-sucker` - Run the installed CLI script
+
+The `uv sync` command creates `.venv` and installs the project in editable mode. The `[tool.uv] no-build = false` setting in `pyproject.toml` allows building the project even if your global uv config has `no-build = true`.
+
+**Temp files**: `curl -o /tmp/file` on Windows Git Bash saves to `C:/Users/<user>/AppData/Local/Temp/file`, not `/tmp/`. Use the Windows path when reading from Python.
 
 ## Settings File Schema
 

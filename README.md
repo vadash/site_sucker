@@ -19,62 +19,49 @@ A Python-based site mirroring tool for creating offline copies of wikis and webs
 
 ## Installation
 
-### Using uv (Recommended)
-
 ```bash
 # Clone the repository
 git clone <repo-url>
 cd site_sucker
 
-# Install in development mode
-uv pip install -e .
-```
-
-### Using pip
-
-```bash
-# Clone the repository
-git clone <repo-url>
-cd site_sucker
-
-# Install in development mode
-pip install -e .
+# Sync dependencies and install project in editable mode
+uv sync
 ```
 
 ## Usage
 
-After installation, run the tool using one of these methods:
+After running `uv sync`, use `uv run` to execute commands:
 
 ### Method 1: Python Module (Recommended)
 
 ```bash
 # Show help
-.venv\Scripts\python.exe -m site_sucker --help
+uv run python -m site_sucker --help
 
 # Interactive mode
-.venv\Scripts\python.exe -m site_sucker
+uv run python -m site_sucker
 
 # Direct mode with URL
-.venv\Scripts\python.exe -m site_sucker https://wiki.example.com/wiki/Main_Page
+uv run python -m site_sucker https://wiki.example.com/wiki/Main_Page
 
 # With options
-.venv\Scripts\python.exe -m site_sucker https://example.com --parallel 8 --depth 2
+uv run python -m site_sucker https://example.com --parallel 8 --depth 2
 ```
 
 ### Method 2: Installed Script
 
 ```bash
 # Show help
-.venv\Scripts\site-sucker.exe --help
+uv run site-sucker --help
 
 # Interactive mode
-.venv\Scripts\site-sucker.exe
+uv run site-sucker
 
 # Direct mode with URL
-.venv\Scripts\site-sucker.exe https://wiki.example.com/wiki/Main_Page
+uv run site-sucker https://wiki.example.com/wiki/Main_Page
 
 # With options
-.venv\Scripts\site-sucker.exe https://example.com -o ./my_mirrors/example --parallel 8
+uv run site-sucker https://example.com -o ./my_mirrors/example --parallel 8
 ```
 
 ### Interactive Mode
@@ -89,29 +76,29 @@ When you run without arguments, you'll be prompted for:
 
 ```bash
 # Basic usage
-.venv\Scripts\python.exe -m site_sucker https://wiki.example.com/wiki/Main_Page
+uv run python -m site_sucker https://wiki.example.com/wiki/Main_Page
 
 # Custom output directory
-.venv\Scripts\python.exe -m site_sucker https://example.com -o ./my_mirrors/example
+uv run python -m site_sucker https://example.com -o ./my_mirrors/example
 
 # Custom parallelism and depth
-.venv\Scripts\python.exe -m site_sucker https://example.com --parallel 8 --depth 2
+uv run python -m site_sucker https://example.com --parallel 8 --depth 2
 
 # Custom settings file
-.venv\Scripts\python.exe -m site_sucker https://example.com --settings ./my_settings.json
+uv run python -m site_sucker https://example.com --settings ./my_settings.json
 
 # Block specific URL patterns (e.g., phpBB forum categories)
-.venv\Scripts\python.exe -m site_sucker https://forum.example.com --reject "f=31&;f=8&;f=11&"
+uv run python -m site_sucker https://forum.example.com --reject "f=31&;f=8&;f=11&"
 
 # Use range expressions to block multiple patterns at once
 # Reject forum IDs 1-100 except 4, 25, 40
-.venv\Scripts\python.exe -m site_sucker https://forum.example.com --reject "f={1..100%4,25,40}&"
+uv run python -m site_sucker https://forum.example.com --reject "f={1..100%4,25,40}&"
 
 # Use multiple --reject flags (they are combined)
-.venv\Scripts\python.exe -m site_sucker https://forum.example.com --reject "action=" --reject "f={1..10}&"
+uv run python -m site_sucker https://forum.example.com --reject "action=" --reject "f={1..10}&"
 
 # Resume an interrupted download (bypasses 429 bot protection)
-.venv\Scripts\python.exe -m site_sucker https://example.com --resume --output-dir ./downloads/example
+uv run python -m site_sucker https://example.com --resume --output-dir ./downloads/example
 ```
 
 ## Configuration
@@ -194,7 +181,7 @@ Pass 4: Offline optimization
 When resuming an interrupted download, use the `--resume` flag:
 
 ```bash
-.venv\Scripts\python.exe -m site_sucker https://example.com --resume --output-dir ./downloads/example
+uv run python -m site_sucker https://example.com --resume --output-dir ./downloads/example
 ```
 
 **Why use resume mode?**
@@ -262,16 +249,14 @@ site_sucker/
 ### Running Tests
 
 ```bash
-# Using the test scripts (recommended)
-.\run_tests.bat
-# or
-.\run_tests.ps1
-
-# Or directly with pytest
-.venv\Scripts\python.exe -m pytest
+# Run all tests
+uv run pytest
 
 # With coverage
-.venv\Scripts\python.exe -m pytest --cov=site_sucker
+uv run pytest --cov=site_sucker
+
+# Run test script
+.\run_tests.ps1
 ```
 
 ## Examples
@@ -280,12 +265,12 @@ site_sucker/
 
 **Old way (typing 97 patterns manually):**
 ```bash
-.venv\Scripts\site-sucker.exe -d 3 --reject "f=1&;f=2&;f=3&;f=5&;f=6&;f=7&;f=8&;f=9&;f=10&;..." https://forum.median-xl.com
+uv run site-sucker -d 3 --reject "f=1&;f=2&;f=3&;f=5&;f=6&;f=7&;f=8&;f=9&;f=10&;..." https://forum.median-xl.com
 ```
 
 **New way (using range expression):**
 ```bash
-.venv\Scripts\site-sucker.exe -d 3 --reject "f={1..100%4,25,40}&" https://forum.median-xl.com
+uv run site-sucker -d 3 --reject "f={1..100%4,25,40}&" https://forum.median-xl.com
 ```
 
 This rejects forum IDs 1-100, excluding IDs 4, 25, and 40.
