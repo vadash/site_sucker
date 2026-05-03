@@ -27,6 +27,14 @@ When resuming an interrupted download, SiteSucker can use a Python-based BFS cra
   - Entry point: `invoke_site_mirror()`
   - Returns: List of failed URLs
   - Creates `output_dir/logs/` for replacement error logging
+  - Uses `CrawlerBase` abstraction for mode-agnostic crawling
+
+- **`crawler.py`**: Unified crawler abstraction
+  - `CrawlerBase`: Abstract base class for crawler implementations
+  - `WgetCrawler`: Wget-based full site mirroring (default mode)
+  - `BFSCrawler`: Python-based BFS crawler for `--resume` mode
+  - `CrawlResult`: Dataclass containing failed URLs and internal link repair flag
+  - Enables pipeline to be mode-agnostic (wget vs. resume)
 
 - **`wget.py`**: Wget binary wrapper
   - `get_wget_path()`: Resolves `bin/wget.exe`
@@ -37,6 +45,7 @@ When resuming an interrupted download, SiteSucker can use a Python-based BFS cra
   - HTML: Uses BeautifulSoup to scan href/src attributes on relevant tags
   - CSS: Uses regex to scan url() references
   - Handles deduplication and URL normalization
+  - Uses `file_iter.py` utilities for file iteration
 
 ### Post-Processing & Replacement Pipeline
 
@@ -50,17 +59,27 @@ When resuming an interrupted download, SiteSucker can use a Python-based BFS cra
 
 - **`repair_links.py`**: URL rewriter (BeautifulSoup for HTML, pipeline for CSS)
   - `repair_external_links()`: Rewrites external URLs to local paths
+    - `_build_url_map()`: Builds URL → local filename mapping
+    - `_build_css_replacement_steps()`: Constructs CSS replacement steps per file
+    - `_repair_html_links_from_content()`: BeautifulSoup-based HTML URL rewriting
   - `repair_internal_links()`: Rewrites internal HTML-to-HTML links to local paths (for resume mode)
+    - Uses `extract_internal_urls()` to discover navigation links
+    - Uses `_rewrite_tag_urls()` for resource tag rewriting (shared helper)
   - HTML files: Uses BeautifulSoup for safe DOM manipulation (URL rewriting + CORS attribute stripping)
   - CSS files: Uses regex pipeline for @import inlining, absolute path conversion, and external URL stripping
   - Each CSS replacement step validated automatically
+  - Uses `file_iter.py` utilities for file iteration
 
 - **`repair_offline.py`**: Offline optimizer (BeautifulSoup-based)
   - `repair_offline_html()`: Removes online-only resources using BeautifulSoup DOM operations
+  - `RemovalRule`: Dataclass for defining removal rules (tag, attrs, content checks)
+  - `_REMOVAL_RULES`: Data-driven list of removal patterns (MediaWiki load.php, phpBB, tracking, etc.)
+  - `_remove_dom_nodes()`: Applies removal rules using BeautifulSoup
+  - `_clean_inline_javascript()`: Regex-based cleanup of inline JS (GA calls, push calls)
   - Handles MediaWiki (load.php), phpBB, tracking scripts, preconnect/dns-prefetch hints
   - Injects fallback CSS
   - All HTML tag removal uses `find_all()` + `.decompose()` — safe, cannot corrupt HTML structure
-  - Inline JavaScript cleanup (GA calls, push calls) uses regex on serialized output
+  - Uses `file_iter.py` utilities for file iteration
 
 ### Configuration & Reporting
 
@@ -68,6 +87,7 @@ When resuming an interrupted download, SiteSucker can use a Python-based BFS cra
   - `load_settings()`: Loads and merges settings.jsonc (with fallback to settings.json)
   - `_strip_jsonc_comments()`: Removes `//` and `/* */` comments from JSONC files
   - `merge_cli_overrides()`: Applies CLI parameter overrides
+  - Supports range expression expansion: `{1..100}`, `{1..100..2}`, `{1..100%4,25,40}`
 
 - **`report.py`**: Report generation
   - `write_site_report()`: Generates download summary
@@ -77,19 +97,43 @@ When resuming an interrupted download, SiteSucker can use a Python-based BFS cra
   - `validate_html_files()`: Detects truncated/corrupt downloads (directory scan)
   - `validate_html_string()`: Validates single HTML content string using BeautifulSoup
   - Checks for missing `<head>`, `<body>` elements and empty bodies
-  - Runs after wget pass 1, before post-processing
+  - Checks for binary/control characters indicating corrupted downloads
+  - Uses `file_iter.py` utilities for file iteration
+  - Called from `WgetCrawler.run()` after wget pass 1
+
+- **`file_iter.py`**: File iteration utilities (shared infrastructure)
+  - `iter_html_files()`: Yields (file_path, content) tuples for all HTML files
+  - `iter_parsed_html()`: Yields (file_path, BeautifulSoup) tuples for parsed HTML
+  - `iter_css_files()`: Yields (file_path, content) tuples for all CSS files
+  - Centralizes error handling (read errors, empty content skipping)
+  - Used by: `media.py`, `repair_links.py`, `repair_offline.py`, `validate_html.py`
+
+### URL Filtering & Path Conversion
+
+- **`url_filter.py`**: Shared URL validation and extraction
+  - `should_reject_url()`: Checks if URL should be rejected (domain, patterns, schemes)
+  - `extract_internal_urls()`: Extracts all internal URLs from parsed HTML
+  - Supports both navigation links (`<a href>`) and page requisites (`<img src>`, `<script src>`, etc.)
+  - Handles relative URL resolution, fragment stripping, reject filtering
+  - Used by: `resume.py::discover_links()`, `repair_links.py::repair_internal_links()`
+
+- **`paths.py`**: URL-to-filepath conversion utilities
+  - `url_to_filepath()`: Converts URLs to expected local file paths
+  - `get_actual_save_path()`: Determines final save path (appends `.html` if needed)
+  - `KNOWN_EXTENSIONS`: Module-level constant of known file extensions
+  - Mimics wget's `--restrict-file-names=windows` behavior
 
 ### Resume Mode
 
 - **`resume.py`**: Python-based BFS crawler (bypasses 429 bot protection)
-  - `crawl_loop()`: Main BFS crawl loop that replaces wget's built-in spidering
-  - `url_to_filepath()`: Converts URLs to expected local file paths (mimics wget's `--restrict-file-names=windows`)
-  - `file_exists_on_disk()`: Checks if file exists (with or without `.html` suffix for wget's `--adjust-extension` behavior)
-  - `resolve_local_file()`: Returns actual file path that exists on disk
-  - `discover_links()`: Extracts internal links from HTML using BeautifulSoup, applies reject patterns
-  - **Key feature**: Wget becomes a single-file downloader (`--level=1`), Python manages all crawl state
+  - `crawl_loop()`: Entry point for BFS crawling (delegates to `ResumeCrawler`)
+  - `discover_links()`: Extracts internal links using shared `extract_internal_urls()`
+  - `discover_css_imports()`: Extracts CSS @import references for BFS crawl
+  - `ResumeCrawler`: Manages BFS crawl state (visited set, queue, depth tracking)
+  - `fetch_file()`: Native HTTP fetching using requests.Session with retry logic
+  - **Key feature**: Python manages entire crawl state; only hits server for missing pages
   - **Solves**: The Catch-22 of `-nc` + `--convert-links` incompatibility for resume
-  - **Bypasses**: 429 bot protection by only hitting the server for genuinely missing pages
+  - **Bypasses**: 429 bot protection by parsing existing files locally for links
 
 ### CLI
 
@@ -254,10 +298,39 @@ Settings are stored in `settings.jsonc` (JSON with Comments) format. The file su
 site-sucker [url] [options]
 
 Options:
-  -o, --output-dir DIR     Output directory
+  url                      The base URL to mirror (optional for interactive mode)
+  -o, --output-dir DIR     Output directory (default: ./downloads/<domain>)
   -s, --settings PATH      Custom settings.jsonc (default: ./settings.jsonc)
-  -d, --depth INT          Max recursion depth
-  -p, --parallel INT       Parallel downloads count
+  -d, --depth INT          Max recursion depth (0 = unlimited)
+  -p, --parallel INT       Parallel downloads count (default: 4)
+  -r, --reject PATTERN     Additional URL patterns to reject (supports range expressions)
+  --resume                 Resume interrupted download using Python BFS crawler
+                          (requires --output-dir pointing to existing download)
+```
+
+### Range Expression Syntax (--reject flag)
+
+The `--reject` flag supports powerful range expressions:
+
+| Syntax | Meaning | Example |
+|--------|---------|---------|
+| `{START..END}` | Numeric range (inclusive) | `{1..10}` → 1, 2, ..., 10 |
+| `{START..END..STEP}` | Range with step | `{1..10..2}` → 1, 3, 5, 7, 9 |
+| `{START..END%EXCLUDE}` | Range excluding values | `{1..10%3,7}` → 1, 2, 4, 5, 6, 8, 9, 10 |
+
+**Examples:**
+```bash
+# Reject forum IDs 1-100 except 4, 25, 40
+--reject "f={1..100%4,25,40}&"
+
+# Reject even forum IDs 2-20
+--reject "f={2..20..2}&"
+
+# Mix literal patterns and expressions (semicolon-delimited)
+--reject "action=;f={1..10%5}&;Special:"
+
+# Or use multiple --reject flags (they are combined)
+--reject "action=" --reject "f={1..10}&" --reject "Special:"
 ```
 
 ## Debugging
@@ -317,9 +390,18 @@ Note: HTML replacements no longer create log entries since BeautifulSoup operati
 Potential areas for improvement:
 
 1. **Progress bars**: Add `tqdm` for download progress
-2. **Resume support**: Track completed URLs for resume capability
-3. **Different output formats**: PDF, single-file HTML
-4. **Content filtering**: Regex-based content inclusion/exclusion
+2. **Logging framework**: Replace `print()` statements with `logging` module for better testability
+3. **Settings dataclass**: Replace `dict[str, Any]` with type-safe `@dataclass` for compile-time validation
+4. **Different output formats**: PDF, single-file HTML
+5. **Content filtering**: Regex-based content inclusion/exclusion
+
+### Recently Completed
+
+- ✅ **Resume support**: Python BFS crawler with `--resume` flag
+- ✅ **Shared URL extraction**: `url_filter.py` for resume + repair modes
+- ✅ **Data-driven DOM removal**: `RemovalRule` dataclass in `repair_offline.py`
+- ✅ **Unified crawler abstraction**: `CrawlerBase` for wget/BFS mode switching
+- ✅ **File iteration utilities**: `file_iter.py` for consistent HTML/CSS scanning
 
 ## Contact & Support
 

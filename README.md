@@ -103,27 +103,36 @@ uv run python -m site_sucker https://example.com --resume --output-dir ./downloa
 
 ## Configuration
 
-The `settings.json` file controls download behavior:
+The `settings.jsonc` file controls download behavior (supports `//` and `/* */` comments):
 
-```json
+```jsonc
 {
+  // HTTP client settings
   "UserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
   "Timeout": 15,
   "Retries": 3,
+
+  // Crawl behavior
   "MaxDepth": 0,
   "OutputRoot": "./downloads",
   "WaitBetweenRequests": 0.5,
   "ParallelDownloads": 2,
+
+  // URL rejection patterns (matched as substrings)
   "RejectPatterns": [
     "action=", "oldid=", "diff=", "printable=",
     "returnto=", "redirect=", "Special:", "Talk:",
     "User:", "User_talk:", "Category_talk:",
     "load.php", "api.php"
   ],
+
+  // Domains to block entirely
   "RejectDomains": [
     "analytics.wikitide.net",
     "matomo."
   ],
+
+  // File extensions for media download pass
   "MediaExtensions": [
     ".png", ".jpg", ".jpeg", ".gif", ".webp",
     ".mp4", ".webm", ".avi", ".mkv", ".mov",
@@ -131,6 +140,8 @@ The `settings.json` file controls download behavior:
   ]
 }
 ```
+
+**Note**: The tool falls back to `settings.json` if `settings.jsonc` is not found.
 
 ### Settings Explained
 
@@ -156,23 +167,25 @@ SiteSucker uses a 4-pass process:
 ```
 Pass 1: Full site mirror (wget --mirror)
   - Downloads all pages within target domain
+  - Validates HTML integrity after download
   - Applies reject patterns to skip low-value URLs
   - Converts links to local paths
 
 Pass 2: External media collection and download
-  - Scans HTML for external media URLs
+  - Scans HTML/CSS for external media URLs
   - Deduplicates URLs (strips query strings)
-  - Downloads in parallel batches
+  - Downloads in parallel batches using wget
 
 Pass 3: External URL rewriting
-  - Rewrites external CDN URLs to local paths
-  - Converts absolute CSS paths to relative
-  - Strips CORS-blocking attributes
+  - Rewrites external CDN URLs to local paths (HTML via BeautifulSoup)
+  - Converts absolute CSS paths to relative (regex pipeline with validation)
+  - Strips CORS-blocking attributes (integrity, crossorigin)
+  - Inlines CSS @import statements to avoid CORS on file://
 
 Pass 4: Offline optimization
-  - Removes online-only resources (load.php, feeds)
-  - Strips tracking/analytics scripts
-  - Removes phpBB offline-useless links
+  - Removes online-only resources (load.php, feeds, preconnect hints)
+  - Strips tracking/analytics scripts and pixels
+  - Removes phpBB offline-useless navigation links
   - Injects fallback CSS for readability
 ```
 
@@ -196,14 +209,15 @@ Resume mode replaces wget's built-in spidering with a Python-based BFS crawler:
 
 ```
 Pass 1: Python BFS crawler
-  - Scans existing local HTML files for links (no server hits)
-  - Downloads only genuinely missing pages (wget --level=1)
+  - Scans existing local HTML/CSS files for links (no server hits)
+  - Downloads only genuinely missing pages via native HTTP (requests.Session)
   - Respects WaitBetweenRequests to avoid 429s
   - Tracks visited URLs to prevent infinite loops
   - Enforces MaxDepth settings
+  - Discovers both HTML links and CSS @import chains
 
 Pass 2: External media download (same as normal mode)
-Pass 3: Internal link rewriting (Python converts https:// → relative paths)
+Pass 3: Internal link rewriting (BeautifulSoup converts https:// → relative paths)
 Pass 4: Offline optimization (same as normal mode)
 ```
 
@@ -226,21 +240,33 @@ site_sucker/
 │       ├── settings.py       # Configuration loading
 │       ├── wget.py           # Wget wrapper
 │       ├── mirror.py         # Pipeline orchestrator
+│       ├── crawler.py        # Crawler abstraction (WgetCrawler, BFSCrawler)
 │       ├── media.py          # External media scanner
 │       ├── repair_links.py   # URL rewriter
 │       ├── repair_offline.py # Offline optimizer
+│       ├── replacement_pipeline.py  # CSS replacement engine with validation
 │       ├── resume.py         # Python BFS crawler (resume mode)
+│       ├── url_filter.py     # Shared URL validation/extraction
+│       ├── paths.py          # URL-to-filepath conversion
+│       ├── file_iter.py      # File iteration utilities
+│       ├── validate_html.py  # HTML integrity checker
 │       └── report.py         # Report generator
 ├── tests/
 │   ├── conftest.py           # Test fixtures
 │   ├── test_settings.py
 │   ├── test_wget.py
+│   ├── test_mirror.py
 │   ├── test_media.py
 │   ├── test_repair_links.py
 │   ├── test_repair_offline.py
+│   ├── test_replacement_pipeline.py
+│   ├── test_resume.py
+│   ├── test_url_filter.py
+│   ├── test_validate_html.py
 │   └── test_report.py
-├── settings.json             # Default configuration
+├── settings.jsonc            # Default configuration (JSON with comments)
 ├── pyproject.toml            # uv project config
+├── AGENTS.md                 # AI agent development guide
 └── README.md
 ```
 
@@ -249,13 +275,19 @@ site_sucker/
 ### Running Tests
 
 ```bash
+# IMPORTANT: Use the direct venv Python executable
+# (uv run pytest doesn't work because pytest is in the venv)
+
 # Run all tests
-uv run pytest
+.\.venv\Scripts\python.exe -m pytest
 
 # With coverage
-uv run pytest --cov=site_sucker
+.\.venv\Scripts\python.exe -m pytest --cov=site_sucker
 
-# Run test script
+# Run specific test module
+.\.venv\Scripts\python.exe -m pytest tests/test_media.py
+
+# Or use the test script
 .\run_tests.ps1
 ```
 
