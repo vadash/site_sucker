@@ -49,7 +49,23 @@ Website mirror tool. 4-pass pipeline: wget mirror → external media download �
 # Lint (Ruff — config in pyproject.toml, Python 3.12, line length 100)
 uv run ruff check src/ tests/          # check
 uv run ruff check --fix src/ tests/    # auto-fix
+
+# Pre-commit hooks (automatically run on git commit)
+uv run pre-commit install              # install hooks (one-time setup)
+uv run pre-commit run --all-files      # run manually on all files
 ```
+
+### Pre-commit Hooks
+
+The project uses pre-commit hooks to automatically enforce code quality before commits. Hooks run automatically on `git commit` and include:
+
+- **Ruff**: Linting and formatting (auto-fixes issues)
+- **MyPy**: Type checking
+- **File checks**: Trailing whitespace, line endings, file size limits, merge conflicts
+- **Security**: Private key detection
+- **Branch protection**: Prevents direct commits to master
+
+Install hooks once with `uv run pre-commit install`. Hooks run automatically on each commit.
 
 ## Platform Gotchas
 

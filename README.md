@@ -26,6 +26,31 @@ cd site_sucker
 
 # Sync dependencies and install project in editable mode
 uv sync
+
+# Install pre-commit hooks (optional, for development)
+uv run pre-commit install
+```
+
+## Development
+
+### Code Quality
+
+This project uses pre-commit hooks to automatically enforce code quality standards:
+
+- **Ruff**: Fast Python linter and formatter
+- **MyPy**: Static type checker
+- **General checks**: Trailing whitespace, line endings, file size limits
+
+```bash
+# Install pre-commit hooks (runs automatically on git commit)
+uv run pre-commit install
+
+# Run hooks manually on all files
+uv run pre-commit run --all-files
+
+# Run specific hooks
+uv run pre-commit run ruff --all-files
+uv run pre-commit run mypy --all-files
 ```
 
 ## Usage
