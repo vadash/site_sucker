@@ -18,7 +18,7 @@ from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 
 from site_sucker.paths import get_actual_save_path, url_to_filepath
-from site_sucker.url_filter import should_reject_url
+from site_sucker.url_filter import extract_internal_urls, should_reject_url
 
 
 def discover_links(
@@ -43,48 +43,25 @@ def discover_links(
     Returns:
         Set of absolute URLs belonging to target_domain, after reject filtering.
     """
-    links = set()
-
     try:
         with open(html_file, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
     except (IOError, OSError):
-        return links
+        return set()
 
     if not content:
-        return links
+        return set()
 
     soup = BeautifulSoup(content, "lxml")
 
-    def _add_url(url_attr: str):
-        """Add a URL to the links set after validation and filtering."""
-        if url_attr.startswith(("#", "javascript:", "mailto:", "data:")):
-            return
-
-        absolute_url = urljoin(base_url, url_attr)
-
-        # Use shared URL filter
-        if should_reject_url(
-            absolute_url,
-            target_domain,
-            reject_patterns,
-            reject_domains,
-        ):
-            return
-
-        normalized = absolute_url.split("#")[0]
-        links.add(normalized)
-
-    for tag in soup.find_all("a", href=True):
-        _add_url(tag["href"])
-
-    for tag in soup.find_all(["img", "script", "link", "video", "audio", "source"]):
-        for attr in ("src", "href", "data-src"):
-            val = tag.get(attr)
-            if val:
-                _add_url(val)
-
-    return links
+    # Use shared URL extraction utility
+    return extract_internal_urls(
+        soup,
+        base_url,
+        target_domain,
+        reject_patterns,
+        reject_domains,
+    )
 
 
 def discover_css_imports(

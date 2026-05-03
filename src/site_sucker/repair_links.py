@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 from site_sucker.file_iter import iter_html_files, iter_css_files
 from site_sucker.paths import get_actual_save_path, url_to_filepath
 from site_sucker.replacement_pipeline import ReplacementStep, run_replacement_pipeline
+from site_sucker.url_filter import extract_internal_urls
 
 
 def _build_url_map(
@@ -428,8 +429,10 @@ def repair_internal_links(
 
         modified = False
 
-        # Rewrite all href attributes pointing to target_domain (for <a> tags)
-        # Skip anchors, javascript, and mailto links by passing them to the helper
+        # Get all internal navigation URLs (already filtered)
+        nav_urls = extract_internal_urls(soup, base_url, target_domain)
+
+        # Rewrite <a> tags whose href matches a discovered internal URL
         for tag in soup.find_all("a", href=True):
             href = tag["href"]
 
@@ -440,14 +443,8 @@ def repair_internal_links(
             # Convert to absolute URL (handles relative links like /about_us.php)
             absolute_url = urljoin(base_url, href)
 
-            # Parse URL to check hostname
-            try:
-                parsed = urlparse(absolute_url)
-                if parsed.scheme not in ("http", "https"):
-                    continue
-                if parsed.hostname != target_domain:
-                    continue
-            except Exception:
+            # Only process URLs that were extracted as internal links
+            if absolute_url.split("#")[0] not in nav_urls:
                 continue
 
             # Map URL to expected local file path
