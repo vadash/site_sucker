@@ -56,4 +56,8 @@ env/
 # MCP
 .jcodemunch.jsonc
 
+# Node.js (jscpd for duplicate code detection)
+node_modules/
+package-lock.json
+
 # UNSORTED

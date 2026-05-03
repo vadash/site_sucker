@@ -119,6 +119,33 @@ When Vulture reports dead code, review it carefully before removal. Some code ma
 - Called dynamically via `getattr()` or string references
 - Part of a plugin system or extension mechanism
 
+### Duplicate Code Detection
+
+The project uses **jscpd** (Copy/Paste Detector) to identify duplicate code and enforce DRY (Don't Repeat Yourself) principles:
+
+```bash
+# Run duplicate code detection
+npx jscpd src/                               # basic scan
+npx jscpd src/ --min-lines 10                # only report duplicates >= 10 lines
+npx jscpd src/ --format python               # Python-specific detection
+```
+
+**How it works**:
+- jscpd analyzes code for structural duplicates (copy-pasted code blocks)
+- Detects exact duplicates and near-duplicates (similar structure with minor variations)
+- Automatically runs on every commit via pre-commit hook
+- Helps maintain code quality by identifying code that should be refactored into reusable functions
+
+**Handling duplicates**:
+- **True duplicates**: Extract common logic into shared functions/classes
+- **Similar patterns**: Consider template functions or parameterization
+- **Acceptable duplicates**: Some duplication is acceptable when extraction would reduce clarity
+
+When jscpd reports duplicate code, evaluate:
+- Can the duplicated logic be extracted into a shared utility function?
+- Would the abstraction improve or harm code readability?
+- Is the duplication intentional (e.g., domain-specific implementations)?
+
 ## Platform Gotchas
 
 - **Windows only**. System `python`/`python3` shows Store prompt — always use `uv run` or `.venv\Scripts\python.exe`

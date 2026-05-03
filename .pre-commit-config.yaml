@@ -67,3 +67,12 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+
+  # Duplicate code detection with jscpd
+  - repo: local
+    hooks:
+      - id: jscpd
+        name: Jscpd duplicate code detection
+        entry: npx jscpd src/
+        language: system
+        pass_filenames: false
