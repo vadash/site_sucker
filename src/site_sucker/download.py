@@ -1,5 +1,6 @@
 """External media downloader using parallel wget subprocess calls."""
 
+import logging
 import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -7,6 +8,8 @@ from pathlib import Path
 
 from site_sucker.settings import Settings
 from site_sucker.wget import build_wget_args, get_wget_path
+
+logger = logging.getLogger(__name__)
 
 
 def download_external_media(
@@ -25,13 +28,13 @@ def download_external_media(
         List of failed URLs (if any).
     """
     if not ext_urls:
-        print("No external media URLs found. Skipping download.")
+        logger.info("No external media URLs found. Skipping download.")
         return []
 
     # Create media subdirectory
     media_dir.mkdir(exist_ok=True)
 
-    print(f"\nDownloading external media (parallel: {settings.parallel_downloads})...")
+    logger.info("Downloading external media (parallel: %d)...", settings.parallel_downloads)
 
     # Disable proxies for subprocess calls
     env = os.environ.copy()
@@ -55,7 +58,7 @@ def download_external_media(
     url_list = list(ext_urls)
     total_urls = len(url_list)
 
-    print(f"  Downloading {total_urls} external media file(s)...")
+    logger.info("  Downloading %d external media file(s)...", total_urls)
 
     failed_urls = []
 
@@ -74,7 +77,7 @@ def download_external_media(
         for future in as_completed(futures):
             url = futures[future]
             completed_count += 1
-            print(f"  [{completed_count}/{total_urls}] {url}")
+            logger.info("  [%d/%d] %s", completed_count, total_urls, url)
 
             try:
                 result = future.result()
@@ -82,11 +85,11 @@ def download_external_media(
                     failed_urls.append(url)
                     stderr = result.stderr.decode(errors="replace").strip()
                     if stderr:
-                        print(f"    wget error: {stderr.splitlines()[-1]}")
+                        logger.warning("    wget error: %s", stderr.splitlines()[-1])
             except Exception:
                 failed_urls.append(url)
 
     if failed_urls:
-        print(f"  {len(failed_urls)} download(s) failed.")
+        logger.warning("  %d download(s) failed.", len(failed_urls))
 
     return failed_urls

@@ -4,6 +4,7 @@ Replaces wget's built-in spidering with Python-managed link discovery and native
 Uses requests.Session for persistent connections and automatic retry with backoff.
 """
 
+import logging
 import re
 import time
 from collections import deque
@@ -18,6 +19,8 @@ from bs4 import BeautifulSoup
 
 from site_sucker.paths import get_actual_save_path, url_to_filepath
 from site_sucker.settings import Settings
+
+logger = logging.getLogger(__name__)
 from site_sucker.url_filter import extract_internal_urls, should_reject_url
 
 
@@ -173,7 +176,7 @@ class ResumeCrawler:
             save_path.write_bytes(response.content)
             return True
         except requests.RequestException as e:
-            print(f"\n         ↳ Fetch failed: {e}")
+            logger.error("Fetch failed: %s", e)
             return False
 
     def run(self, seed_url: str):
@@ -185,7 +188,7 @@ class ResumeCrawler:
         self.queue.append((seed_url, 0))
         iteration = 0
 
-        print(f"\n[*] BFS crawl: {self.target_domain} (depth={self.max_depth if self.max_depth > 0 else 'unlimited'})")
+        logger.info("[*] BFS crawl: %s (depth=%s)", self.target_domain, self.max_depth if self.max_depth > 0 else 'unlimited')
 
         while self.queue:
             iteration += 1
@@ -208,7 +211,7 @@ class ResumeCrawler:
             if not file_existed:
                 parsed_url = urlparse(current_url)
                 short_path = parsed_url.path + (f"?{parsed_url.query}" if parsed_url.query else "")
-                print(f"\r  [{len(self.visited)} visited | {len(self.queue)} queued] GET {short_path}")
+                print(f"\r  [{len(self.visited)} visited | {len(self.queue)} queued] GET {short_path}", end="", flush=True)
 
                 success = self.fetch_file(current_url, actual_path)
 
@@ -234,7 +237,7 @@ class ResumeCrawler:
         print()  # newline after progress counter
 
         failure_suffix = f" ({self.stats['failed']} failed)" if self.stats['failed'] > 0 else ""
-        print(f"[*] BFS complete: {len(self.visited)} visited, {self.stats['downloaded']} downloaded{failure_suffix}")
+        logger.info("[*] BFS complete: %d visited, %d downloaded%s", len(self.visited), self.stats['downloaded'], failure_suffix)
 
     def process_discovered_links(self, current_url: str, local_path: Path, current_depth: int):
         """Extract links from HTML or CSS and add to queue.

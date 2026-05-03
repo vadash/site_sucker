@@ -1,5 +1,6 @@
 """Tests for HTML validation functionality."""
 
+import logging
 from pathlib import Path
 
 import pytest
@@ -244,8 +245,9 @@ def test_validate_html_substantial_content(tmp_path: Path):
     assert results["all_valid"]
 
 
-def test_print_validation_results_valid(capsys: pytest.CaptureFixture[str]):
+def test_print_validation_results_valid(caplog: pytest.LogCaptureFixture):
     """Test print output for valid results."""
+    caplog.set_level(logging.INFO)
     results = {
         "missing_head": [],
         "missing_body": [],
@@ -256,13 +258,13 @@ def test_print_validation_results_valid(capsys: pytest.CaptureFixture[str]):
 
     print_validation_results(results)
 
-    captured = capsys.readouterr()
-    assert "✓ HTML validation passed" in captured.out
-    assert "⚠" not in captured.out
+    assert "✓ HTML validation passed" in caplog.text
+    assert "⚠" not in caplog.text
 
 
-def test_print_validation_results_invalid(capsys: pytest.CaptureFixture[str], tmp_path: Path):
+def test_print_validation_results_invalid(caplog: pytest.LogCaptureFixture, tmp_path: Path):
     """Test print output for invalid results."""
+    caplog.set_level(logging.INFO)
     # Create files to report
     (tmp_path / "broken1.html").write_text('<html><body></body></html>')
     (tmp_path / "broken2.html").write_text('<html><body></body></html>')
@@ -277,12 +279,11 @@ def test_print_validation_results_invalid(capsys: pytest.CaptureFixture[str], tm
 
     print_validation_results(results)
 
-    captured = capsys.readouterr()
-    assert "⚠ HTML validation detected issues" in captured.out
-    assert "Missing head element" in captured.out
-    assert "Empty body content" in captured.out
-    assert "broken1.html" in captured.out
-    assert "incomplete download" in captured.out.lower()
+    assert "⚠ HTML validation detected issues" in caplog.text
+    assert "Missing head element" in caplog.text
+    assert "Empty body content" in caplog.text
+    assert "broken1.html" in caplog.text
+    assert "incomplete download" in caplog.text.lower()
 
 
 def test_validate_html_binary_content_del_char(tmp_path: Path):
@@ -363,7 +364,8 @@ def test_validate_html_string_returns_binary_key():
     assert result["has_binary_content"] is False
 
 
-def test_print_validation_results_binary_content(capsys: pytest.CaptureFixture[str]):
+def test_print_validation_results_binary_content(caplog: pytest.LogCaptureFixture):
+    caplog.set_level(logging.INFO)
     """Test print output for binary content detection."""
     results = {
         "missing_head": [],
@@ -375,6 +377,5 @@ def test_print_validation_results_binary_content(capsys: pytest.CaptureFixture[s
 
     print_validation_results(results)
 
-    captured = capsys.readouterr()
-    assert "Binary/control characters" in captured.out
-    assert "index.html" in captured.out
+    assert "Binary/control characters" in caplog.text
+    assert "index.html" in caplog.text

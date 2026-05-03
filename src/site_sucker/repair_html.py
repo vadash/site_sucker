@@ -1,5 +1,6 @@
 """HTML link rewriting module for external and internal URLs."""
 
+import logging
 import os
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
@@ -9,6 +10,8 @@ from bs4 import BeautifulSoup
 from site_sucker.file_iter import iter_html_files
 from site_sucker.paths import get_actual_save_path, url_to_filepath
 from site_sucker.url_filter import extract_internal_urls
+
+logger = logging.getLogger(__name__)
 
 
 def _rewrite_tag_urls(
@@ -165,7 +168,7 @@ def rewrite_internal_html_links(
     Returns:
         Number of HTML files modified.
     """
-    print(f"\n[*] Rewriting internal links to local files...")
+    logger.info("[*] Rewriting internal links to local files...")
 
     modified_count = 0
 
@@ -246,5 +249,5 @@ def rewrite_internal_html_links(
                 f.write(str(soup))
             modified_count += 1
 
-    print(f"  Rewrote internal links in {modified_count} HTML file(s)")
+    logger.info("  Rewrote internal links in %d HTML file(s)", modified_count)
     return modified_count

@@ -1,5 +1,6 @@
 """Tests for repair_links module."""
 
+import logging
 from pathlib import Path
 
 import pytest
@@ -7,8 +8,9 @@ import pytest
 from site_sucker import repair_links
 
 
-def test_repair_external_links_empty_urls(tmp_path: Path, capsys):
+def test_repair_external_links_empty_urls(tmp_path: Path, caplog):
     """Test with no external URLs to rewrite."""
+    caplog.set_level(logging.INFO)
     result = repair_links.repair_external_links(
         tmp_path,
         tmp_path / "images",
@@ -16,8 +18,7 @@ def test_repair_external_links_empty_urls(tmp_path: Path, capsys):
     )
 
     assert result == 0
-    captured = capsys.readouterr()
-    assert "No external URLs to rewrite" in captured.out
+    assert "No external URLs to rewrite" in caplog.text
 
 
 def test_repair_external_links_basic(tmp_path: Path, sample_html: str):
@@ -187,7 +188,8 @@ def test_repair_external_links_css_import_external_stripped(tmp_path: Path):
     assert "body { color: red; }" in updated_main
 
 
-def test_repair_external_links_css_strip_google_fonts(tmp_path: Path, capsys):
+def test_repair_external_links_css_strip_google_fonts(tmp_path: Path, caplog):
+    caplog.set_level(logging.INFO)
     """Test Google Fonts @import stripping."""
     styles_dir = tmp_path / "styles"
     styles_dir.mkdir()
@@ -205,11 +207,11 @@ def test_repair_external_links_css_strip_google_fonts(tmp_path: Path, capsys):
     assert "fonts.googleapis.com" not in updated_main
     assert "Google Fonts @import stripped" in updated_main
 
-    captured = capsys.readouterr()
-    assert "Stripped 1 external font @import" in captured.out
+    assert "Stripped 1 external font @import" in caplog.text
 
 
-def test_repair_external_links_css_strip_external_url(tmp_path: Path, capsys):
+def test_repair_external_links_css_strip_external_url(tmp_path: Path, caplog):
+    caplog.set_level(logging.INFO)
     """Test external url() in CSS is neutralized."""
     styles_dir = tmp_path / "styles"
     styles_dir.mkdir()
@@ -227,8 +229,7 @@ def test_repair_external_links_css_strip_external_url(tmp_path: Path, capsys):
     assert "about:blank" in updated_main
     assert "External URL stripped" in updated_main
 
-    captured = capsys.readouterr()
-    assert "Neutralized 1 external url() reference" in captured.out
+    assert "Neutralized 1 external url() reference" in caplog.text
 
 
 def test_repair_internal_links_absolute_urls(tmp_path: Path):

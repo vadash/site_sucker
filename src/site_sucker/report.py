@@ -1,7 +1,10 @@
 """Download report generator."""
 
+import logging
 from datetime import datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def format_size(size_bytes: int) -> str:
@@ -42,9 +45,10 @@ def write_site_report(
     end_time = datetime.now()
     duration = end_time - start_time
 
-    print("\n" + "=" * 60)
-    print("DOWNLOAD COMPLETE")
-    print("=" * 60)
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("DOWNLOAD COMPLETE")
+    logger.info("=" * 60)
 
     # Count downloaded files
     files = list(output_dir.rglob("*"))
@@ -54,24 +58,27 @@ def write_site_report(
 
     size_str = format_size(total_size)
 
-    print("\nStatistics:")
-    print(f"  Total files:     {total_files}")
-    print(f"  Total size:      {size_str}")
-    print(f"  Duration:        {duration}")
+    logger.info("")
+    logger.info("Statistics:")
+    logger.info("  Total files:     %d", total_files)
+    logger.info("  Total size:      %s", size_str)
+    logger.info("  Duration:        %s", duration)
 
     if failed_urls:
-        print(f"\nFailed downloads: {len(failed_urls)}")
+        logger.warning("Failed downloads: %d", len(failed_urls))
         fail_log_path = output_dir / "failures.log"
 
         try:
             with open(fail_log_path, "w", encoding="utf-8") as f:
                 for url in failed_urls:
                     f.write(f"{url}\n")
-            print(f"  Failed URLs logged to: {fail_log_path}")
+            logger.info("  Failed URLs logged to: %s", fail_log_path)
         except IOError as e:
-            print(f"  Warning: Could not write failures.log: {e}")
+            logger.warning("  Warning: Could not write failures.log: %s", e)
     else:
-        print("\nFailed downloads: 0")
+        logger.info("")
+        logger.info("Failed downloads: 0")
 
-    print(f"\nOutput directory: {output_dir}")
-    print("=" * 60)
+    logger.info("")
+    logger.info("Output directory: %s", output_dir)
+    logger.info("=" * 60)

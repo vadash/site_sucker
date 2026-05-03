@@ -1,5 +1,6 @@
 """Offline HTML cleaner - strips online-only resources using BeautifulSoup."""
 
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -8,6 +9,8 @@ from typing import Any
 from bs4 import BeautifulSoup
 
 from site_sucker.file_iter import iter_html_files
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -150,10 +153,10 @@ def repair_offline_html(output_dir: Path | str) -> int:
     total = len(html_items)
 
     if total == 0:
-        print(f"\n[4/4] Stripping online-only resources for offline browsing...")
+        logger.info("[4/4] Stripping online-only resources for offline browsing...")
         return 0
 
-    print(f"\n[4/4] Stripping online-only resources for offline browsing... ({total} file(s))")
+    logger.info("[4/4] Stripping online-only resources for offline browsing... (%d file(s))", total)
 
     modified_count = 0
     processed = 0
@@ -197,6 +200,6 @@ def repair_offline_html(output_dir: Path | str) -> int:
     print()  # newline after progress counter
 
     if modified_count > 0:
-        print(f"  Cleaned {modified_count} HTML file(s) for offline use")
+        logger.info("  Cleaned %d HTML file(s) for offline use", modified_count)
 
     return modified_count

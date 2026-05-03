@@ -5,11 +5,14 @@ This module orchestrates HTML and CSS link rewriting by delegating to specialize
 - repair_css: Regex-pipeline CSS processing (@import inlining, path conversion, URL stripping)
 """
 
+import logging
 from pathlib import Path
 
 from site_sucker.file_iter import iter_html_files
 from site_sucker.repair_css import build_css_replacement_steps, process_css_files
 from site_sucker.repair_html import rewrite_external_html_links, rewrite_internal_html_links
+
+logger = logging.getLogger(__name__)
 
 
 def _build_url_map(
@@ -67,19 +70,19 @@ def repair_external_links(
     log_dir = Path(log_dir) if log_dir else None
 
     if not external_urls:
-        print("No external URLs to rewrite.")
+        logger.info("No external URLs to rewrite.")
         # Don't return early - we still need to process CSS for absolute paths
 
-    print(f"\n[3/4] Rewriting external URLs to local paths...")
+    logger.info("[3/4] Rewriting external URLs to local paths...")
 
     # Build URL -> local filename mapping
     url_map = _build_url_map(media_dir, external_urls)
 
     if not url_map:
-        print("No downloaded external files found on disk.")
+        logger.info("No downloaded external files found on disk.")
         # Continue to process CSS for absolute paths even if no external URLs
     else:
-        print(f"  Mapping {len(url_map)} external URLs to local files")
+        logger.info("  Mapping %d external URLs to local files", len(url_map))
 
     # ── PART 1: Process HTML Files (BeautifulSoup) ────────────────────────────
     modified_count = 0
@@ -88,7 +91,7 @@ def repair_external_links(
         if rewrite_external_html_links(html_file, output_dir, content, media_dir, url_map):
             modified_count += 1
 
-    print(f"  Rewrote external links in {modified_count} HTML file(s)")
+    logger.info("  Rewrote external links in %d HTML file(s)", modified_count)
 
     # ── PART 2: Process CSS Files (Regex Pipeline) ─────────────────────────────
     process_css_files(output_dir, url_map, log_dir)

@@ -1,5 +1,6 @@
 """External media scanner for downloaded HTML and CSS files."""
 
+import logging
 import re
 from pathlib import Path
 from urllib.parse import urlparse
@@ -8,6 +9,8 @@ from bs4 import BeautifulSoup
 
 from site_sucker.file_iter import iter_html_files, iter_css_files
 from site_sucker.settings import Settings
+
+logger = logging.getLogger(__name__)
 
 
 def get_external_media(
@@ -31,7 +34,7 @@ def get_external_media(
         Set of unique external media URLs.
     """
     output_dir = Path(output_dir)
-    print(f"\n[2/2] Collecting external media from downloaded HTML and CSS...")
+    logger.info("[2/2] Collecting external media from downloaded HTML and CSS...")
 
     ext_urls = set()
 
@@ -107,5 +110,5 @@ def get_external_media(
             ext_urls.add(normalized_url)
 
     total_scanned = url_count + css_url_count
-    print(f"Scanned {url_count} HTML URLs and {css_url_count} CSS url() references, found {len(ext_urls)} unique external media URLs")
+    logger.info("Scanned %d HTML URLs and %d CSS url() references, found %d unique external media URLs", url_count, css_url_count, len(ext_urls))
     return ext_urls

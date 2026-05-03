@@ -1,11 +1,14 @@
 """HTML validation for detecting incomplete or corrupted downloads."""
 
+import logging
 import re
 from pathlib import Path
 
 from bs4 import BeautifulSoup
 
 from site_sucker.file_iter import iter_html_files
+
+logger = logging.getLogger(__name__)
 
 # Control characters that should never appear in valid HTML content.
 # Excludes: tab (0x09), newline (0x0A), carriage return (0x0D).
@@ -148,43 +151,43 @@ def print_validation_results(results: dict[str, list[str]]) -> None:
         results: Validation results dictionary from validate_html_files().
     """
     if results["all_valid"]:
-        print("\n✓ HTML validation passed: All HTML files are structurally complete")
+        logger.info("✓ HTML validation passed: All HTML files are structurally complete")
         return
 
-    print("\n⚠ HTML validation detected issues:")
-    print("=" * 60)
+    logger.warning("⚠ HTML validation detected issues:")
+    logger.info("=" * 60)
 
     if results["missing_head"]:
-        print(f"  Missing head element ({len(results['missing_head'])} files):")
+        logger.info("  Missing head element (%d files):", len(results['missing_head']))
         for f in results["missing_head"][:5]:
-            print(f"    - {f}")
+            logger.info("    - %s", f)
         if len(results["missing_head"]) > 5:
-            print(f"    ... and {len(results['missing_head']) - 5} more")
+            logger.info("    ... and %d more", len(results['missing_head']) - 5)
 
     if results["missing_body"]:
-        print(f"  Missing body element ({len(results['missing_body'])} files):")
+        logger.info("  Missing body element (%d files):", len(results['missing_body']))
         for f in results["missing_body"][:5]:
-            print(f"    - {f}")
+            logger.info("    - %s", f)
         if len(results["missing_body"]) > 5:
-            print(f"    ... and {len(results['missing_body']) - 5} more")
+            logger.info("    ... and %d more", len(results['missing_body']) - 5)
 
     if results["empty_body"]:
-        print(f"  Empty body content ({len(results['empty_body'])} files):")
+        logger.info("  Empty body content (%d files):", len(results['empty_body']))
         for f in results["empty_body"][:5]:
-            print(f"    - {f}")
+            logger.info("    - %s", f)
         if len(results['empty_body']) > 5:
-            print(f"    ... and {len(results['empty_body']) - 5} more")
+            logger.info("    ... and %d more", len(results['empty_body']) - 5)
 
     if results["has_binary_content"]:
-        print(f"  Binary/control characters detected ({len(results['has_binary_content'])} files):")
+        logger.info("  Binary/control characters detected (%d files):", len(results['has_binary_content']))
         for f in results["has_binary_content"][:5]:
-            print(f"    - {f}")
+            logger.info("    - %s", f)
         if len(results['has_binary_content']) > 5:
-            print(f"    ... and {len(results['has_binary_content']) - 5} more")
+            logger.info("    ... and %d more", len(results['has_binary_content']) - 5)
 
-    print("=" * 60)
-    print("This indicates an incomplete download. Possible causes:")
-    print("  - Network timeout or connection loss during wget pass 1")
-    print("  - Server returning incomplete content")
-    print("  - Wget interrupted or crashed")
-    print("\nRecommendation: Re-run the download or check the site manually in a browser")
+    logger.info("=" * 60)
+    logger.warning("This indicates an incomplete download. Possible causes:")
+    logger.warning("  - Network timeout or connection loss during wget pass 1")
+    logger.warning("  - Server returning incomplete content")
+    logger.warning("  - Wget interrupted or crashed")
+    logger.warning("Recommendation: Re-run the download or check the site manually in a browser")

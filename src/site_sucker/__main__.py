@@ -1,11 +1,23 @@
 """CLI entry point for SiteSucker."""
 
 import argparse
+import logging
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
 from site_sucker import mirror, report, settings
+
+logger = logging.getLogger(__name__)
+
+
+def setup_logging() -> None:
+    """Configure logging for the application."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(message)s',
+        handlers=[logging.StreamHandler()]
+    )
 
 
 def normalize_url(url: str) -> str:
@@ -109,7 +121,7 @@ def interactive_prompt(default_url: str = "", default_output: str = "",
     if not default_url:
         url_input = input("Site URL to mirror: ").strip()
         if not url_input:
-            print("Error: URL is required.")
+            logger.error("URL is required.")
             raise SystemExit(1)
         url = url_input
     else:
@@ -132,6 +144,7 @@ def interactive_prompt(default_url: str = "", default_output: str = "",
 
 def main() -> None:
     """Main entry point."""
+    setup_logging()
     args = parse_args()
 
     # Load settings
@@ -165,7 +178,7 @@ def main() -> None:
             parsed = urlparse(url)
             target_domain = parsed.hostname or ""
         except Exception as e:
-            print(f"Error: Invalid URL: {url}")
+            logger.error("Invalid URL: %s", url)
             raise SystemExit(1) from e
 
         # Determine output directory
@@ -182,11 +195,11 @@ def main() -> None:
         parsed = urlparse(url)
         target_domain = parsed.hostname or ""
     except Exception as e:
-        print(f"Error: Invalid URL: {url}")
+        logger.error("Invalid URL: %s", url)
         raise SystemExit(1) from e
 
     if not target_domain:
-        print(f"Error: Could not extract domain from URL: {url}")
+        logger.error("Could not extract domain from URL: %s", url)
         raise SystemExit(1)
 
     # Create output directory (resolve to absolute path to prevent file bleed)
@@ -212,7 +225,7 @@ def main() -> None:
             failed_urls=failed_urls,
         )
     except Exception as e:
-        print(f"Error during download: {e}")
+        logger.error("Error during download: %s", e)
         raise SystemExit(1) from e
 
 

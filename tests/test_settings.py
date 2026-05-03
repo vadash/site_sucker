@@ -1,6 +1,7 @@
 """Tests for settings module."""
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -146,8 +147,9 @@ def test_load_settings_from_file(tmp_path: Path):
     assert result.retries == 3
 
 
-def test_load_settings_invalid_json(tmp_path: Path, capsys):
+def test_load_settings_invalid_json(tmp_path: Path, caplog):
     """Test handling of invalid JSON in settings file."""
+    caplog.set_level(logging.WARNING)
     settings_file = tmp_path / "invalid.json"
     with open(settings_file, "w", encoding="utf-8") as f:
         f.write("{ invalid json }")
@@ -156,8 +158,7 @@ def test_load_settings_invalid_json(tmp_path: Path, capsys):
 
     # Should fall back to defaults
     assert result.user_agent == Settings().user_agent
-    captured = capsys.readouterr()
-    assert "Warning" in captured.out
+    assert "Warning" in caplog.text or "Failed" in caplog.text
 
 
 def test_merge_cli_overrides_parallel():

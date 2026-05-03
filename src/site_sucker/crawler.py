@@ -4,6 +4,7 @@ Provides a common interface for both wget-based mirroring and Python BFS crawlin
 enabling the mirror pipeline to be mode-agnostic.
 """
 
+import logging
 import os
 import subprocess
 from abc import ABC, abstractmethod
@@ -14,6 +15,8 @@ from site_sucker.resume import crawl_loop as bfs_crawl_loop
 from site_sucker.settings import Settings
 from site_sucker.validate_html import print_validation_results, validate_html_files
 from site_sucker.wget import build_wget_args, get_wget_path
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -73,7 +76,7 @@ class WgetCrawler(CrawlerBase):
             CrawlResult with empty failed_urls (wget handles its own retries) and
             needs_internal_link_repair=False (wget's --convert-links handles this).
         """
-        print(f"\n[1/4] Mirroring {self.url} (wget mode)...")
+        logger.info("[1/4] Mirroring %s (wget mode)...", self.url)
 
         # Disable proxies for subprocess calls
         env = os.environ.copy()
@@ -102,7 +105,7 @@ class WgetCrawler(CrawlerBase):
         )
 
         if result.returncode not in (0, 8):
-            print(f"Warning: wget pass 1 exited with code {result.returncode}")
+            logger.warning("wget pass 1 exited with code %d", result.returncode)
 
         # Validate HTML integrity
         validation_results = validate_html_files(self.output_dir)
@@ -126,7 +129,7 @@ class BFSCrawler(CrawlerBase):
             CrawlResult with empty failed_urls (BFS crawler tracks its own failures) and
             needs_internal_link_repair=True (wget didn't run, so links need rewriting).
         """
-        print(f"\n[1/4] Resume mode: Python BFS crawler (bypassing 429 bot protection)...")
+        logger.info("[1/4] Resume mode: Python BFS crawler (bypassing 429 bot protection)...")
 
         bfs_crawl_loop(
             self.url,

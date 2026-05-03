@@ -2,10 +2,13 @@
 
 import copy
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -326,10 +329,10 @@ def load_settings(settings_path: Path | str | None = None) -> Settings:
 
             settings.update(user_settings)
         except (json.JSONDecodeError, IOError) as e:
-            print(f"Warning: Failed to load settings from {settings_path}: {e}")
-            print("Using default settings.")
+            logger.warning("Failed to load settings from %s: %s", settings_path, e)
+            logger.info("Using default settings.")
     else:
-        print(f"Settings file not found at {settings_path}. Using defaults.")
+        logger.info("Settings file not found at %s. Using defaults.", settings_path)
 
     # Convert legacy dict to Settings dataclass
     return Settings.from_legacy_dict(settings)
@@ -374,9 +377,9 @@ def merge_cli_overrides(
                 # Expand any range expressions in the pattern
                 expanded = _expand_reject_expression(pattern)
                 if expanded != [pattern]:
-                    print(f"Expanded --reject \"{pattern}\" → {len(expanded)} patterns:")
+                    logger.info("Expanded --reject \"%s\" → %d patterns:", pattern, len(expanded))
                     for i, p in enumerate(expanded, 1):
-                        print(f"  {i:4d}. {p}")
+                        logger.info("  %4d. %s", i, p)
                 additional_patterns.extend(expanded)
 
         if additional_patterns:

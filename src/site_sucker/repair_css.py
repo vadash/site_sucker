@@ -1,10 +1,13 @@
 """CSS processing module for @import inlining, path conversion, and URL stripping."""
 
+import logging
 import re
 from pathlib import Path
 
 from site_sucker.file_iter import iter_css_files
 from site_sucker.replacement_pipeline import ReplacementStep, run_replacement_pipeline
+
+logger = logging.getLogger(__name__)
 
 
 def build_css_replacement_steps(
@@ -169,12 +172,12 @@ def process_css_files(
                 pass
 
     if css_modified_count > 0:
-        print(f"  Processed {css_modified_count} CSS file(s)")
+        logger.info("  Processed %d CSS file(s)", css_modified_count)
         if imports_inlined > 0:
-            print(f"    - Inlined {imports_inlined} @import statement(s)")
+            logger.info("    - Inlined %d @import statement(s)", imports_inlined)
         if external_fonts_stripped > 0:
-            print(f"    - Stripped {external_fonts_stripped} external font @import(s)")
+            logger.info("    - Stripped %d external font @import(s)", external_fonts_stripped)
         if external_urls_stripped > 0:
-            print(f"    - Neutralized {external_urls_stripped} external url() reference(s)")
+            logger.info("    - Neutralized %d external url() reference(s)", external_urls_stripped)
 
     return css_modified_count

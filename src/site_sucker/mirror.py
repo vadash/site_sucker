@@ -1,5 +1,6 @@
 """Main mirroring pipeline orchestrator."""
 
+import logging
 from pathlib import Path
 
 from site_sucker.crawler import BFSCrawler, CrawlResult, WgetCrawler
@@ -8,6 +9,8 @@ from site_sucker.media import get_external_media
 from site_sucker.repair_links import repair_external_links, repair_internal_links
 from site_sucker.repair_offline import repair_offline_html
 from site_sucker.settings import Settings
+
+logger = logging.getLogger(__name__)
 
 
 def invoke_site_mirror(
@@ -55,7 +58,7 @@ def invoke_site_mirror(
     ext_urls = get_external_media(output_dir, target_domain, settings)
 
     if not ext_urls:
-        print("No external media URLs found. Skipping pass 2 & 3.")
+        logger.info("No external media URLs found. Skipping pass 2 & 3.")
         # Still run pass 4 to clean offline HTML
         repair_offline_html(output_dir)
         return failed_urls
