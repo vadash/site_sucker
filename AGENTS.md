@@ -42,21 +42,14 @@ Entry: `mirror.py::invoke_site_mirror()`. `CrawlerBase` → `WgetCrawler` (defau
 ```bash
 .\.venv\Scripts\python.exe -m pytest                    # tests
 .\.venv\Scripts\python.exe -m pytest --cov=site_sucker  # with coverage
-uv run ruff check src/ tests/                           # lint
-uv run ruff check --fix src/ tests/                     # lint --fix
-uv run pre-commit run --all-files                       # all hooks
-uv run radon cc src/ -a -s                              # complexity (C+ fails hook)
-uv run vulture src/ --min-confidence 80                 # dead code (whitelist: .vulture.whitelist)
-npx jscpd src/                                          # duplicate detection
 ```
 
-**Pre-commit hooks** (auto on commit): Ruff, MyPy, Radon (complexity ≤10), Vulture (80% confidence), jscpd, file checks, private key detection, branch protection (no direct master commits). Install: `uv run pre-commit install`.
+Pre-commit hooks run automatically on commit — no need to run lint, type-check, complexity, dead-code, or duplicate checks manually.
 
 ## Platform
 
 - Windows only. Use `uv run` or `.venv\Scripts\python.exe` (system `python` opens Store)
 - `wget.exe` in `bin/`
-- Git Bash `/tmp/` → `C:/Users/<user>/AppData/Local/Temp/`
 
 ## Workflow
 
