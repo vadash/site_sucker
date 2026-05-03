@@ -79,3 +79,24 @@ def iter_css_files(output_dir: Path) -> Iterator[tuple[Path, str]]:
             continue
 
         yield css_file, content
+
+
+def write_if_changed(file_path: Path, original: str, new_content: str) -> bool:
+    """Write content to file only if it has changed.
+
+    Compares the original content with the new content and only writes to disk
+    if they differ. This avoids unnecessary disk writes and preserves file timestamps.
+
+    Args:
+        file_path: Path to the file to write.
+        original: Original file content (for comparison).
+        new_content: New content to write if different from original.
+
+    Returns:
+        True if file was written (content changed), False otherwise.
+    """
+    if new_content != original:
+        with open(file_path, "w", encoding="utf-8", newline="") as f:
+            f.write(new_content)
+        return True
+    return False

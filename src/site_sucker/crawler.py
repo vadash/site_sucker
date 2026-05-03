@@ -5,7 +5,6 @@ enabling the mirror pipeline to be mode-agnostic.
 """
 
 import logging
-import os
 import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -14,7 +13,7 @@ from pathlib import Path
 from site_sucker.resume import crawl_loop as bfs_crawl_loop
 from site_sucker.settings import Settings
 from site_sucker.validate_html import print_validation_results, validate_html_files
-from site_sucker.wget import build_wget_args, get_wget_path
+from site_sucker.wget import build_wget_args, get_clean_env, get_wget_path
 
 logger = logging.getLogger(__name__)
 
@@ -79,9 +78,7 @@ class WgetCrawler(CrawlerBase):
         logger.info("[1/4] Mirroring %s (wget mode)...", self.url)
 
         # Disable proxies for subprocess calls
-        env = os.environ.copy()
-        for var in ["http_proxy", "https_proxy", "all_proxy", "HTTP_PROXY", "HTTPS_PROXY"]:
-            env.pop(var, None)
+        env = get_clean_env()
 
         wget_path = get_wget_path()
 

@@ -8,7 +8,7 @@ from typing import Any
 
 from bs4 import BeautifulSoup
 
-from site_sucker.file_iter import iter_html_files
+from site_sucker.file_iter import iter_html_files, write_if_changed
 
 logger = logging.getLogger(__name__)
 
@@ -190,8 +190,7 @@ def repair_offline_html(output_dir: Path | str) -> int:
 
         # 5. Only write if content changed
         if removed > 0 or cleaned_content != content:
-            with open(html_file, "w", encoding="utf-8", newline="") as f:
-                f.write(cleaned_content)
+            write_if_changed(html_file, content, cleaned_content)
             modified_count += 1
 
         processed += 1

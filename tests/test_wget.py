@@ -187,3 +187,47 @@ def test_build_wget_args_with_extra_reject_patterns():
     assert "f=31&" in combined_regex
     assert "f=8&" in combined_regex
     assert "f=11&" in combined_regex
+
+
+def test_get_clean_env_removes_proxy_vars(monkeypatch):
+    """Test that get_clean_env removes proxy environment variables."""
+    # Set some proxy environment variables
+    monkeypatch.setenv("http_proxy", "http://proxy.example.com:8080")
+    monkeypatch.setenv("https_proxy", "https://proxy.example.com:8080")
+    monkeypatch.setenv("all_proxy", "socks5://proxy.example.com:1080")
+    monkeypatch.setenv("HTTP_PROXY", "http://proxy.example.com:8080")
+    monkeypatch.setenv("HTTPS_PROXY", "https://proxy.example.com:8080")
+
+    env = wget.get_clean_env()
+
+    # All proxy variables should be removed
+    assert "http_proxy" not in env
+    assert "https_proxy" not in env
+    assert "all_proxy" not in env
+    assert "HTTP_PROXY" not in env
+    assert "HTTPS_PROXY" not in env
+
+    # Other environment variables should be preserved
+    assert "PATH" in env
+
+
+def test_get_clean_env_preserves_other_env(monkeypatch):
+    """Test that get_clean_env preserves non-proxy environment variables."""
+    monkeypatch.setenv("CUSTOM_VAR", "custom_value")
+
+    env = wget.get_clean_env()
+
+    assert env.get("CUSTOM_VAR") == "custom_value"
+
+
+def test_get_clean_env_returns_copy():
+    """Test that get_clean_env returns a copy of the environment."""
+    import os
+
+    env1 = wget.get_clean_env()
+    env2 = wget.get_clean_env()
+
+    # Modifying one should not affect the other
+    env1["TEST_VAR"] = "test_value"
+    assert "TEST_VAR" not in env2
+

@@ -1,5 +1,6 @@
 """Wget binary resolver and argument builder."""
 
+import os
 from pathlib import Path
 
 from site_sucker.settings import Settings
@@ -99,3 +100,18 @@ def build_wget_args(
         args.extend(extra_args)
 
     return args
+
+
+def get_clean_env() -> dict[str, str]:
+    """Get a clean environment with proxy variables removed.
+
+    Creates a copy of the current environment and removes all proxy-related
+    environment variables to prevent subprocess calls from using proxies.
+
+    Returns:
+        Environment dictionary with proxy variables removed.
+    """
+    env = os.environ.copy()
+    for var in ["http_proxy", "https_proxy", "all_proxy", "HTTP_PROXY", "HTTPS_PROXY"]:
+        env.pop(var, None)
+    return env

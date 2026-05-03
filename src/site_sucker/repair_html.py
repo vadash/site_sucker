@@ -7,7 +7,7 @@ from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
-from site_sucker.file_iter import iter_html_files
+from site_sucker.file_iter import iter_html_files, write_if_changed
 from site_sucker.paths import get_actual_save_path, url_to_filepath
 from site_sucker.url_filter import extract_internal_urls
 
@@ -145,8 +145,7 @@ def rewrite_external_html_links(
             modified = True
 
     if modified:
-        with open(html_file, "w", encoding="utf-8", newline="") as f:
-            f.write(str(soup))
+        write_if_changed(html_file, content, str(soup))
 
     return modified
 
@@ -245,8 +244,7 @@ def rewrite_internal_html_links(
             modified = True
 
         if modified:
-            with open(html_file, "w", encoding="utf-8", newline="") as f:
-                f.write(str(soup))
+            write_if_changed(html_file, content, str(soup))
             modified_count += 1
 
     logger.info("  Rewrote internal links in %d HTML file(s)", modified_count)

@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from site_sucker.file_iter import write_if_changed
+
 
 @dataclass
 class ReplacementStep:
@@ -218,7 +220,6 @@ def run_replacement_pipeline(
 
     # Write final content only if modified
     if current_content != original_content:
-        with open(file_path, "w", encoding="utf-8", newline="") as f:
-            f.write(current_content)
+        write_if_changed(file_path, original_content, current_content)
 
     return successful_steps
