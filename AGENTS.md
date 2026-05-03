@@ -190,6 +190,32 @@ uv pip install -e ".[dev]"
 .\.venv\Scripts\python.exe -m pytest tests/test_media.py
 ```
 
+### Linting
+
+The project uses **Ruff** for fast Python linting and import sorting.
+
+```bash
+# Install ruff (one-time setup)
+uv pip install ruff
+
+# Run linter to check for issues
+uv run ruff check src/ tests/
+
+# Auto-fix fixable issues
+uv run ruff check --fix src/ tests/
+
+# Show linting rules and documentation
+uv run ruff rule --all
+```
+
+**Ruff configuration** is in `pyproject.toml` under `[tool.ruff]`:
+- Targets Python 3.12
+- Line length: 100 characters
+- Enabled rules: pycodestyle (E, W), pyflakes (F), isort (I), flake8-bugbear (B), flake8-comprehensions (C4), pyupgrade (UP), flake8-unused-arguments (ARG), flake8-simplify (SIM)
+- Test files allow unused function arguments (for pytest fixtures)
+
+**Note**: The linter found 64 issues on initial run. These are legitimate code quality problems that should be addressed incrementally.
+
 ### Test Patterns
 
 - Use `tmp_path` fixture for file operations
@@ -254,7 +280,7 @@ When fixing bugs:
 - **Runtime dependencies**:
   - `beautifulsoup4>=4.12.0`: HTML parsing and DOM manipulation
   - `lxml>=5.0.0`: Fast HTML parser for BeautifulSoup
-- **Dev dependencies**: `pytest`, `pytest-cov` (for testing)
+- **Dev dependencies**: `pytest`, `pytest-cov` (for testing), `ruff` (for linting)
 - **Binary**: `wget.exe` in `bin/` directory
 
 ## Platform Notes
