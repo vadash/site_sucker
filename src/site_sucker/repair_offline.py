@@ -145,11 +145,20 @@ def repair_offline_html(output_dir: Path | str) -> int:
     """
     output_dir = Path(output_dir)
 
-    print(f"\n[4/4] Stripping online-only resources for offline browsing...")
+    # Collect files upfront to get total count for progress
+    html_items = list(iter_html_files(output_dir))
+    total = len(html_items)
+
+    if total == 0:
+        print(f"\n[4/4] Stripping online-only resources for offline browsing...")
+        return 0
+
+    print(f"\n[4/4] Stripping online-only resources for offline browsing... ({total} file(s))")
 
     modified_count = 0
+    processed = 0
 
-    for html_file, content in iter_html_files(output_dir):
+    for html_file, content in html_items:
         # Parse with BeautifulSoup using lxml parser
         soup = BeautifulSoup(content, 'lxml')
 
@@ -181,6 +190,11 @@ def repair_offline_html(output_dir: Path | str) -> int:
             with open(html_file, "w", encoding="utf-8", newline="") as f:
                 f.write(cleaned_content)
             modified_count += 1
+
+        processed += 1
+        print(f"\r  [{processed}/{total}]", end="", flush=True)
+
+    print()  # newline after progress counter
 
     if modified_count > 0:
         print(f"  Cleaned {modified_count} HTML file(s) for offline use")
