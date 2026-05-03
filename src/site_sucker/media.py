@@ -2,18 +2,18 @@
 
 import re
 from pathlib import Path
-from typing import Any
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 
 from site_sucker.file_iter import iter_html_files, iter_css_files
+from site_sucker.settings import Settings
 
 
 def get_external_media(
     output_dir: Path | str,
     target_domain: str,
-    settings: dict[str, Any],
+    settings: Settings,
 ) -> set[str]:
     """Scan downloaded HTML and CSS for external media URLs.
 
@@ -25,7 +25,7 @@ def get_external_media(
     Args:
         output_dir: Path to the directory containing downloaded HTML files.
         target_domain: The primary domain being mirrored (used to exclude internal URLs).
-        settings: Configuration dictionary.
+        settings: Settings instance.
 
     Returns:
         Set of unique external media URLs.
@@ -39,7 +39,7 @@ def get_external_media(
     css_url_pattern = re.compile(r'url\(\s*["\']?(https?://[^"\'\\)]+)["\']?\s*\)')
 
     # Build media extension regex
-    extensions = settings.get("MediaExtensions", [])
+    extensions = settings.media_extensions
     escaped_exts = [re.escape(ext) for ext in extensions]
     media_regex = re.compile(rf"(?i)({'|'.join(escaped_exts)})(\?.*)?$")
 

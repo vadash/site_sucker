@@ -3,26 +3,91 @@
 import copy
 import json
 import re
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 
-DEFAULT_SETTINGS: dict[str, Any] = {
-    "UserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "Timeout": 15,
-    "Retries": 3,
-    "MaxDepth": 0,
-    "OutputRoot": "./downloads",
-    "WaitBetweenRequests": 0.5,
-    "ParallelDownloads": 2,
-    "RejectPatterns": [],
-    "RejectDomains": [],
-    "MediaExtensions": [
+@dataclass(frozen=True)
+class Settings:
+    """Configuration settings for SiteSucker.
+
+    Attributes:
+        user_agent: HTTP User-Agent header string.
+        timeout: HTTP request timeout in seconds.
+        retries: Number of retry attempts for failed requests.
+        max_depth: Maximum crawl depth (0 = unlimited).
+        output_root: Root output directory path.
+        wait_between_requests: Delay between requests in seconds.
+        parallel_downloads: Number of parallel download workers.
+        reject_patterns: URL substring patterns to reject.
+        reject_domains: Exact domain names to reject.
+        media_extensions: File extensions to download as media.
+    """
+    user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    timeout: int = 15
+    retries: int = 3
+    max_depth: int = 0
+    output_root: str = "./downloads"
+    wait_between_requests: float = 0.5
+    parallel_downloads: int = 2
+    reject_patterns: list[str] = field(default_factory=list)
+    reject_domains: list[str] = field(default_factory=list)
+    media_extensions: list[str] = field(default_factory=lambda: [
         ".png", ".jpg", ".jpeg", ".gif", ".webp",
         ".mp4", ".webm", ".avi", ".mkv", ".mov",
         ".svg", ".ico", ".bmp", ".css", ".js", ".woff2"
-    ],
-}
+    ])
+
+    def to_legacy_dict(self) -> dict[str, Any]:
+        """Convert Settings to legacy dict format for backwards compatibility.
+
+        Returns:
+            Dictionary with camelCase keys matching old format.
+        """
+        return {
+            "UserAgent": self.user_agent,
+            "Timeout": self.timeout,
+            "Retries": self.retries,
+            "MaxDepth": self.max_depth,
+            "OutputRoot": self.output_root,
+            "WaitBetweenRequests": self.wait_between_requests,
+            "ParallelDownloads": self.parallel_downloads,
+            "RejectPatterns": self.reject_patterns,
+            "RejectDomains": self.reject_domains,
+            "MediaExtensions": self.media_extensions,
+        }
+
+    @classmethod
+    def from_legacy_dict(cls, data: dict[str, Any]) -> "Settings":
+        """Create Settings from legacy dict format.
+
+        Args:
+            data: Dictionary with camelCase keys.
+
+        Returns:
+            Settings instance.
+        """
+        return cls(
+            user_agent=data.get("UserAgent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"),
+            timeout=data.get("Timeout", 15),
+            retries=data.get("Retries", 3),
+            max_depth=data.get("MaxDepth", 0),
+            output_root=data.get("OutputRoot", "./downloads"),
+            wait_between_requests=data.get("WaitBetweenRequests", 0.5),
+            parallel_downloads=data.get("ParallelDownloads", 2),
+            reject_patterns=data.get("RejectPatterns", []),
+            reject_domains=data.get("RejectDomains", []),
+            media_extensions=data.get("MediaExtensions", [
+                ".png", ".jpg", ".jpeg", ".gif", ".webp",
+                ".mp4", ".webm", ".avi", ".mkv", ".mov",
+                ".svg", ".ico", ".bmp", ".css", ".js", ".woff2"
+            ]),
+        )
+
+
+# Legacy constant for backwards compatibility during transition
+DEFAULT_SETTINGS: dict[str, Any] = Settings().to_legacy_dict()
 
 
 def _expand_reject_expression(pattern: str) -> list[str]:
@@ -220,7 +285,7 @@ def _strip_jsonc_comments(content: str) -> str:
     return '\n'.join(result_lines)
 
 
-def load_settings(settings_path: Path | str | None = None) -> dict[str, Any]:
+def load_settings(settings_path: Path | str | None = None) -> Settings:
     """Load settings from JSON/JSONC file, falling back to defaults.
 
     Args:
@@ -228,7 +293,7 @@ def load_settings(settings_path: Path | str | None = None) -> dict[str, Any]:
             If None, looks for settings.jsonc first, then settings.json.
 
     Returns:
-        Dictionary containing merged settings (file overrides defaults).
+        Settings instance containing merged settings (file overrides defaults).
     """
     settings = copy.deepcopy(DEFAULT_SETTINGS)
 
@@ -266,29 +331,35 @@ def load_settings(settings_path: Path | str | None = None) -> dict[str, Any]:
     else:
         print(f"Settings file not found at {settings_path}. Using defaults.")
 
-    return settings
+    # Convert legacy dict to Settings dataclass
+    return Settings.from_legacy_dict(settings)
 
 
-def merge_cli_overrides(settings: dict[str, Any], parallel: int | None = None,
-                        depth: int | None = None, extra_reject: list[str] | None = None) -> dict[str, Any]:
+def merge_cli_overrides(
+    settings: Settings,
+    parallel: int | None = None,
+    depth: int | None = None,
+    extra_reject: list[str] | None = None,
+) -> Settings:
     """Merge CLI parameter overrides into settings.
 
     Args:
-        settings: Base settings dictionary.
-        parallel: Override for ParallelDownloads.
-        depth: Override for MaxDepth.
+        settings: Base Settings instance.
+        parallel: Override for parallel_downloads.
+        depth: Override for max_depth.
         extra_reject: Additional reject patterns. Supports semicolon-delimited values.
 
     Returns:
-        Updated settings dictionary (original is never mutated).
+        Updated Settings instance (original is never mutated).
     """
-    result = copy.deepcopy(settings)
+    # Convert to dict for mutation, then back to Settings
+    settings_dict = settings.to_legacy_dict()
 
     if parallel is not None and parallel > 0:
-        result["ParallelDownloads"] = parallel
+        settings_dict["ParallelDownloads"] = parallel
 
     if depth is not None and depth > 0:
-        result["MaxDepth"] = depth
+        settings_dict["MaxDepth"] = depth
 
     if extra_reject:
         # Split semicolon-delimited patterns and append to RejectPatterns
@@ -310,6 +381,6 @@ def merge_cli_overrides(settings: dict[str, Any], parallel: int | None = None,
 
         if additional_patterns:
             # Create a new list to avoid mutating the original settings
-            result["RejectPatterns"] = list(result.get("RejectPatterns", [])) + additional_patterns
+            settings_dict["RejectPatterns"] = list(settings_dict.get("RejectPatterns", [])) + additional_patterns
 
-    return result
+    return Settings.from_legacy_dict(settings_dict)

@@ -146,7 +146,7 @@ def main() -> None:
 
     if not url:
         # Interactive mode
-        output_root = Path(cfg["OutputRoot"])
+        output_root = Path(cfg.output_root)
 
         # Need URL first to determine defaults
         try:
@@ -155,11 +155,11 @@ def main() -> None:
             test_url = None
 
         url, output_dir, depth, parallel = interactive_prompt(
-            default_parallel=cfg.get("ParallelDownloads", 4),
-            default_depth=cfg.get("MaxDepth", 0),
+            default_parallel=cfg.parallel_downloads,
+            default_depth=cfg.max_depth,
         )
 
-        cfg = settings.merge_cli_overrides(cfg, parallel, depth)
+        cfg = settings.merge_cli_overrides(cfg, parallel, depth, None)
     else:
         try:
             parsed = urlparse(url)
@@ -172,7 +172,7 @@ def main() -> None:
         if args.output_dir:
             output_dir = args.output_dir
         else:
-            output_dir = Path(cfg["OutputRoot"]) / target_domain
+            output_dir = Path(cfg.output_root) / target_domain
 
     # Normalize URL scheme
     url = normalize_url(url)

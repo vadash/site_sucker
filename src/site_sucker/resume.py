@@ -8,7 +8,6 @@ import re
 import time
 from collections import deque
 from pathlib import Path
-from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -18,6 +17,7 @@ from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 
 from site_sucker.paths import get_actual_save_path, url_to_filepath
+from site_sucker.settings import Settings
 from site_sucker.url_filter import extract_internal_urls, should_reject_url
 
 
@@ -124,18 +124,18 @@ def discover_css_imports(
 class ResumeCrawler:
     """Manages the BFS crawl state and native HTTP fetching."""
 
-    def __init__(self, output_dir: Path, target_domain: str, settings: dict[str, Any]):
+    def __init__(self, output_dir: Path, target_domain: str, settings: Settings):
         self.output_dir = output_dir
         self.target_domain = target_domain
         self.settings = settings
 
-        self.max_depth = settings.get("MaxDepth", 0)
-        self.wait_seconds = settings.get("WaitBetweenRequests", 1.5)
-        self.timeout = settings.get("Timeout", 15)
-        self.retries = settings.get("Retries", 3)
+        self.max_depth = settings.max_depth
+        self.wait_seconds = settings.wait_between_requests
+        self.timeout = settings.timeout
+        self.retries = settings.retries
 
-        self.reject_patterns = settings.get("RejectPatterns", [])
-        self.reject_domains = settings.get("RejectDomains", [])
+        self.reject_patterns = settings.reject_patterns
+        self.reject_domains = settings.reject_domains
 
         # State
         self.visited = set()
@@ -153,7 +153,7 @@ class ResumeCrawler:
         adapter = HTTPAdapter(max_retries=retry_strategy)
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
-        self.session.headers.update({"User-Agent": settings["UserAgent"], "Accept-Encoding": "identity"})
+        self.session.headers.update({"User-Agent": settings.user_agent, "Accept-Encoding": "identity"})
 
     def fetch_file(self, url: str, save_path: Path) -> bool:
         """Fetch a file natively using Python, handling redirects and retries.
@@ -273,7 +273,7 @@ def crawl_loop(
     url: str,
     output_dir: Path,
     target_domain: str,
-    settings: dict[str, Any],
+    settings: Settings,
     wget_path: Path | None = None,
 ) -> None:
     """Entry point for the resume crawler.
@@ -282,7 +282,7 @@ def crawl_loop(
         url: Seed URL to start crawling from.
         output_dir: Output directory for downloaded files.
         target_domain: Primary domain being mirrored.
-        settings: Configuration dictionary.
+        settings: Settings instance.
         wget_path: Ignored (kept for backwards compatibility).
     """
     crawler = ResumeCrawler(output_dir, target_domain, settings)

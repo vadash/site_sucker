@@ -4,12 +4,12 @@ import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any
 
 from site_sucker.crawler import BFSCrawler, CrawlResult, WgetCrawler
 from site_sucker.media import get_external_media
 from site_sucker.repair_links import repair_external_links, repair_internal_links
 from site_sucker.repair_offline import repair_offline_html
+from site_sucker.settings import Settings
 from site_sucker.wget import build_wget_args, get_wget_path
 
 
@@ -17,7 +17,7 @@ def invoke_site_mirror(
     url: str,
     output_dir: Path | str,
     target_domain: str,
-    settings: dict[str, Any],
+    settings: Settings,
     resume: bool = False,
 ) -> list[str]:
     """Execute the four-pass site mirroring process.
@@ -67,7 +67,7 @@ def invoke_site_mirror(
     media_dir = output_dir / "images"
     media_dir.mkdir(exist_ok=True)
 
-    print(f"\nDownloading external media (parallel: {settings['ParallelDownloads']})...")
+    print(f"\nDownloading external media (parallel: {settings.parallel_downloads})...")
 
     # Disable proxies for subprocess calls
     env = os.environ.copy()
@@ -93,7 +93,7 @@ def invoke_site_mirror(
 
     print(f"  Downloading {total_urls} external media file(s)...")
 
-    with ThreadPoolExecutor(max_workers=settings["ParallelDownloads"]) as executor:
+    with ThreadPoolExecutor(max_workers=settings.parallel_downloads) as executor:
         futures = {
             executor.submit(
                 subprocess.run,

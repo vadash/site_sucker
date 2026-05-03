@@ -5,33 +5,35 @@ from pathlib import Path
 
 import pytest
 
+from site_sucker.settings import Settings
+
 
 @pytest.fixture
-def sample_settings(tmp_path: Path) -> dict:
-    """Create a sample settings dictionary.
+def sample_settings(tmp_path: Path) -> Settings:
+    """Create a sample Settings instance.
 
     Args:
         tmp_path: Pytest temporary path fixture.
 
     Returns:
-        Settings dictionary.
+        Settings instance.
     """
-    return {
-        "UserAgent": "Mozilla/5.0 Test",
-        "Timeout": 10,
-        "Retries": 2,
-        "MaxDepth": 0,
-        "OutputRoot": "./downloads",
-        "WaitBetweenRequests": 0.5,
-        "ParallelDownloads": 2,
-        "RejectPatterns": ["action=", "Special:"],
-        "RejectDomains": ["analytics.example.com"],
-        "MediaExtensions": [".png", ".jpg", ".css"],
-    }
+    return Settings(
+        user_agent="Mozilla/5.0 Test",
+        timeout=10,
+        retries=2,
+        max_depth=0,
+        output_root="./downloads",
+        wait_between_requests=0.5,
+        parallel_downloads=2,
+        reject_patterns=["action=", "Special:"],
+        reject_domains=["analytics.example.com"],
+        media_extensions=[".png", ".jpg", ".css"],
+    )
 
 
 @pytest.fixture
-def settings_file(tmp_path: Path, sample_settings: dict) -> Path:
+def settings_file(tmp_path: Path, sample_settings: Settings) -> Path:
     """Create a sample settings.json file.
 
     Args:
@@ -43,7 +45,7 @@ def settings_file(tmp_path: Path, sample_settings: dict) -> Path:
     """
     settings_path = tmp_path / "settings.json"
     with open(settings_path, "w", encoding="utf-8") as f:
-        json.dump(sample_settings, f)
+        json.dump(sample_settings.to_legacy_dict(), f)
     return settings_path
 
 

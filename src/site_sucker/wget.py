@@ -1,7 +1,8 @@
 """Wget binary resolver and argument builder."""
 
 from pathlib import Path
-from typing import Any
+
+from site_sucker.settings import Settings
 
 
 def get_wget_path() -> Path:
@@ -29,7 +30,7 @@ def get_wget_path() -> Path:
 
 
 def build_wget_args(
-    settings: dict[str, Any],
+    settings: Settings,
     output_dir: Path | str,
     extra_args: list[str] | None = None,
     no_link_conversion: bool = False,
@@ -37,7 +38,7 @@ def build_wget_args(
     """Build wget argument array from settings and CLI parameters.
 
     Args:
-        settings: Configuration dictionary from settings.json.
+        settings: Settings instance.
         output_dir: Output directory path for downloaded files.
         extra_args: Additional arguments to pass to wget.
         no_link_conversion: If True, skip --convert-links and --adjust-extension.
@@ -52,22 +53,21 @@ def build_wget_args(
         "--restrict-file-names=windows",
         "--no-host-directories",
         f"--directory-prefix={output_dir}",
-        f"--user-agent={settings['UserAgent']}",
-        f"--timeout={settings['Timeout']}",
-        f"--tries={settings['Retries']}",
+        f"--user-agent={settings.user_agent}",
+        f"--timeout={settings.timeout}",
+        f"--tries={settings.retries}",
         "--header=Accept-Encoding: identity",
     ]
 
     # Respect MaxDepth (0 = infinite)
-    max_depth = settings.get("MaxDepth", 0)
-    if max_depth > 0:
-        args.append(f"--level={max_depth}")
+    if settings.max_depth > 0:
+        args.append(f"--level={settings.max_depth}")
     else:
         args.append("--level=inf")
 
     # Add wait if specified (helps avoid 429 rate limiting)
-    if settings.get("WaitBetweenRequests", 0) > 0:
-        args.append(f"--wait={settings['WaitBetweenRequests']}")
+    if settings.wait_between_requests > 0:
+        args.append(f"--wait={settings.wait_between_requests}")
         args.append("--random-wait")
 
     # Only add link conversion for pass 1 (mirroring), not pass 2 (plain downloads)
@@ -78,11 +78,11 @@ def build_wget_args(
     # Build reject-regex from patterns and domains
     reject_parts = []
 
-    if settings.get("RejectPatterns"):
-        reject_parts.extend(settings["RejectPatterns"])
+    if settings.reject_patterns:
+        reject_parts.extend(settings.reject_patterns)
 
-    if settings.get("RejectDomains"):
-        reject_domains = "|".join(settings["RejectDomains"])
+    if settings.reject_domains:
+        reject_domains = "|".join(settings.reject_domains)
         reject_parts.append(f"({reject_domains})")
 
     # Forum-specific: reject viewtopic.php?p= per-post duplicates

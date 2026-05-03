@@ -3,7 +3,6 @@
 import os
 import re
 from pathlib import Path
-from typing import Any
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
@@ -11,6 +10,7 @@ from bs4 import BeautifulSoup
 from site_sucker.file_iter import iter_html_files, iter_css_files
 from site_sucker.paths import get_actual_save_path, url_to_filepath
 from site_sucker.replacement_pipeline import ReplacementStep, run_replacement_pipeline
+from site_sucker.settings import Settings
 from site_sucker.url_filter import extract_internal_urls
 
 

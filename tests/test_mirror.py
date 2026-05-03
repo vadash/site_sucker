@@ -6,10 +6,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from site_sucker import mirror
+from site_sucker.settings import Settings
 from site_sucker.wget import build_wget_args
 
 
-def test_pass2_includes_nc_flag(sample_settings: dict, tmp_path: Path):
+def test_pass2_includes_nc_flag(sample_settings: Settings, tmp_path: Path):
     """Test that Pass 2 (media download) includes -nc flag for resume support."""
     # Verify that build_wget_args with no_link_conversion=True includes -nc
     pass2_args = build_wget_args(
@@ -32,7 +33,7 @@ def test_pass2_includes_nc_flag(sample_settings: dict, tmp_path: Path):
 def test_wget_crawler_used_when_resume_false(
     mock_get_wget_path: MagicMock,
     mock_subprocess_run: MagicMock,
-    sample_settings: dict,
+    sample_settings: Settings,
     tmp_path: Path,
 ):
     """Test that WgetCrawler is used when resume=False."""
@@ -59,7 +60,7 @@ def test_wget_crawler_used_when_resume_false(
 @patch("site_sucker.crawler.bfs_crawl_loop")
 def test_bfs_crawler_used_when_resume_true(
     mock_bfs_crawl_loop: MagicMock,
-    sample_settings: dict,
+    sample_settings: Settings,
     tmp_path: Path,
 ):
     """Test that BFSCrawler is used when resume=True."""

@@ -1,13 +1,15 @@
 """Tests for wget module."""
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from site_sucker import wget
+from site_sucker.settings import Settings
 
 
-def test_get_wget_path_exists(sample_settings: dict, tmp_path: Path):
+def test_get_wget_path_exists(sample_settings: Settings, tmp_path: Path):
     """Test get_wget_path when wget.exe exists."""
     # Create a temporary bin directory with wget.exe
     bin_dir = tmp_path / "bin"
@@ -59,7 +61,7 @@ def test_get_wget_path_not_found(tmp_path: Path):
         wget_module.__file__ = original_file
 
 
-def test_build_wget_args_basic(sample_settings: dict):
+def test_build_wget_args_basic(sample_settings: Settings):
     """Test building basic wget arguments."""
     args = wget.build_wget_args(sample_settings, "/tmp/output")
 
@@ -69,29 +71,29 @@ def test_build_wget_args_basic(sample_settings: dict):
     assert "--no-verbose" in args
     assert "--level=inf" in args
     assert "--directory-prefix=/tmp/output" in args
-    assert f"--user-agent={sample_settings['UserAgent']}" in args
-    assert f"--timeout={sample_settings['Timeout']}" in args
-    assert f"--tries={sample_settings['Retries']}" in args
+    assert f"--user-agent={sample_settings.user_agent}" in args
+    assert f"--timeout={sample_settings.timeout}" in args
+    assert f"--tries={sample_settings.retries}" in args
     assert "--header=Accept-Encoding: identity" in args
 
 
-def test_build_wget_args_with_max_depth(sample_settings: dict):
+def test_build_wget_args_with_max_depth(sample_settings: Settings):
     """Test building wget arguments with a specific max depth."""
-    sample_settings["MaxDepth"] = 4
+    sample_settings = replace(sample_settings, max_depth=4)
     args = wget.build_wget_args(sample_settings, "/tmp/output")
     assert "--level=4" in args
 
 
-def test_build_wget_args_with_wait(sample_settings: dict):
+def test_build_wget_args_with_wait(sample_settings: Settings):
     """Test building wget arguments with wait between requests."""
-    sample_settings["WaitBetweenRequests"] = 1.5
+    sample_settings = replace(sample_settings, wait_between_requests=1.5)
     args = wget.build_wget_args(sample_settings, "/tmp/output")
 
     assert "--wait=1.5" in args
     assert "--random-wait" in args
 
 
-def test_build_wget_args_no_link_conversion(sample_settings: dict):
+def test_build_wget_args_no_link_conversion(sample_settings: Settings):
     """Test building wget arguments without link conversion."""
     args = wget.build_wget_args(
         sample_settings,
@@ -103,7 +105,7 @@ def test_build_wget_args_no_link_conversion(sample_settings: dict):
     assert "--adjust-extension" not in args
 
 
-def test_build_wget_args_with_link_conversion(sample_settings: dict):
+def test_build_wget_args_with_link_conversion(sample_settings: Settings):
     """Test building wget arguments with link conversion (default)."""
     args = wget.build_wget_args(sample_settings, "/tmp/output")
 
@@ -111,7 +113,7 @@ def test_build_wget_args_with_link_conversion(sample_settings: dict):
     assert "--adjust-extension" in args
 
 
-def test_build_wget_args_with_reject_patterns(sample_settings: dict):
+def test_build_wget_args_with_reject_patterns(sample_settings: Settings):
     """Test building wget arguments with reject patterns."""
     args = wget.build_wget_args(sample_settings, "/tmp/output")
 
@@ -124,13 +126,13 @@ def test_build_wget_args_with_reject_patterns(sample_settings: dict):
 
 def test_build_wget_args_with_phpbb_sort_and_sid_patterns():
     """Test that phpBB sort and session ID reject patterns are included."""
-    settings = {
-        "UserAgent": "Test",
-        "Timeout": 10,
-        "Retries": 2,
-        "RejectPatterns": ["&sk=", "&sd=", "&st=", "&sid="],
-        "RejectDomains": [],
-    }
+    settings = Settings(
+        user_agent="Test",
+        timeout=10,
+        retries=2,
+        reject_patterns=["&sk=", "&sd=", "&st=", "&sid="],
+        reject_domains=[],
+    )
 
     args = wget.build_wget_args(settings, "/tmp/output")
 
@@ -148,7 +150,7 @@ def test_build_wget_args_with_phpbb_sort_and_sid_patterns():
     assert "&sid=" in combined_regex
 
 
-def test_build_wget_args_extra_args(sample_settings: dict):
+def test_build_wget_args_extra_args(sample_settings: Settings):
     """Test building wget arguments with extra arguments."""
     args = wget.build_wget_args(
         sample_settings,
@@ -164,13 +166,13 @@ def test_build_wget_args_extra_args(sample_settings: dict):
 
 def test_build_wget_args_with_extra_reject_patterns():
     """Test that extra reject patterns from CLI are included in wget args."""
-    settings = {
-        "UserAgent": "Test",
-        "Timeout": 10,
-        "Retries": 2,
-        "RejectPatterns": ["f=31&", "f=8&", "f=11&"],
-        "RejectDomains": [],
-    }
+    settings = Settings(
+        user_agent="Test",
+        timeout=10,
+        retries=2,
+        reject_patterns=["f=31&", "f=8&", "f=11&"],
+        reject_domains=[],
+    )
 
     args = wget.build_wget_args(settings, "/tmp/output")
 

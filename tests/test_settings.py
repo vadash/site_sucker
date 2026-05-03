@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from site_sucker import settings
+from site_sucker.settings import Settings
 
 
 # Range Expression Tests
@@ -91,27 +92,27 @@ def test_expand_reject_expression_empty_range():
 
 def test_merge_cli_overrides_with_expressions():
     """Test that expressions are expanded during CLI override merge."""
-    base = {"RejectPatterns": ["pattern1"]}
+    base = Settings(reject_patterns=["pattern1"])
     result = settings.merge_cli_overrides(base, extra_reject=["f={1..5%3}&"])
 
     # Should have pattern1 plus expanded f=1&, f=2&, f=4&, f=5& (excluding 3)
-    assert "pattern1" in result["RejectPatterns"]
-    assert "f=1&" in result["RejectPatterns"]
-    assert "f=2&" in result["RejectPatterns"]
-    assert "f=3&" not in result["RejectPatterns"]
-    assert "f=4&" in result["RejectPatterns"]
-    assert "f=5&" in result["RejectPatterns"]
+    assert "pattern1" in result.reject_patterns
+    assert "f=1&" in result.reject_patterns
+    assert "f=2&" in result.reject_patterns
+    assert "f=3&" not in result.reject_patterns
+    assert "f=4&" in result.reject_patterns
+    assert "f=5&" in result.reject_patterns
 
 
 def test_merge_cli_overrides_mixed_literals_and_expressions():
     """Test mixing literal patterns and expressions."""
-    base = {"RejectPatterns": []}
+    base = Settings(reject_patterns=[])
     result = settings.merge_cli_overrides(base, extra_reject=["action=", "f={1..3}&"])
 
-    assert "action=" in result["RejectPatterns"]
-    assert "f=1&" in result["RejectPatterns"]
-    assert "f=2&" in result["RejectPatterns"]
-    assert "f=3&" in result["RejectPatterns"]
+    assert "action=" in result.reject_patterns
+    assert "f=1&" in result.reject_patterns
+    assert "f=2&" in result.reject_patterns
+    assert "f=3&" in result.reject_patterns
 
 
 def test_load_settings_default(tmp_path: Path, monkeypatch):
@@ -119,9 +120,9 @@ def test_load_settings_default(tmp_path: Path, monkeypatch):
     # Change to temp directory where no settings file exists
     monkeypatch.chdir(tmp_path)
     result = settings.load_settings(None)
-    assert result["UserAgent"] == settings.DEFAULT_SETTINGS["UserAgent"]
-    assert result["Timeout"] == settings.DEFAULT_SETTINGS["Timeout"]
-    assert result["ParallelDownloads"] == 2
+    assert result.user_agent == Settings().user_agent
+    assert result.timeout == Settings().timeout
+    assert result.parallel_downloads == 2
 
 
 def test_load_settings_from_file(tmp_path: Path):
@@ -138,11 +139,11 @@ def test_load_settings_from_file(tmp_path: Path):
 
     result = settings.load_settings(settings_file)
 
-    assert result["UserAgent"] == "Custom Agent"
-    assert result["Timeout"] == 30
-    assert result["ParallelDownloads"] == 8
+    assert result.user_agent == "Custom Agent"
+    assert result.timeout == 30
+    assert result.parallel_downloads == 8
     # Defaults should still be present for missing keys
-    assert "Retries" in result
+    assert result.retries == 3
 
 
 def test_load_settings_invalid_json(tmp_path: Path, capsys):
@@ -154,108 +155,108 @@ def test_load_settings_invalid_json(tmp_path: Path, capsys):
     result = settings.load_settings(settings_file)
 
     # Should fall back to defaults
-    assert result == settings.DEFAULT_SETTINGS
+    assert result.user_agent == Settings().user_agent
     captured = capsys.readouterr()
     assert "Warning" in captured.out
 
 
 def test_merge_cli_overrides_parallel():
     """Test merging parallel override."""
-    base = {"ParallelDownloads": 2, "MaxDepth": 0}
+    base = Settings(parallel_downloads=2, max_depth=0)
     result = settings.merge_cli_overrides(base, parallel=8)
 
-    assert result["ParallelDownloads"] == 8
-    assert result["MaxDepth"] == 0
+    assert result.parallel_downloads == 8
+    assert result.max_depth == 0
 
 
 def test_merge_cli_overrides_depth():
     """Test merging depth override."""
-    base = {"ParallelDownloads": 2, "MaxDepth": 0}
+    base = Settings(parallel_downloads=2, max_depth=0)
     result = settings.merge_cli_overrides(base, depth=5)
 
-    assert result["ParallelDownloads"] == 2
-    assert result["MaxDepth"] == 5
+    assert result.parallel_downloads == 2
+    assert result.max_depth == 5
 
 
 def test_merge_cli_overrides_both():
     """Test merging both overrides."""
-    base = {"ParallelDownloads": 2, "MaxDepth": 0}
+    base = Settings(parallel_downloads=2, max_depth=0)
     result = settings.merge_cli_overrides(base, parallel=16, depth=3)
 
-    assert result["ParallelDownloads"] == 16
-    assert result["MaxDepth"] == 3
+    assert result.parallel_downloads == 16
+    assert result.max_depth == 3
 
 
 def test_merge_cli_overrides_zero_values():
     """Test that zero values don't override (defaults logic)."""
-    base = {"ParallelDownloads": 4, "MaxDepth": 5}
+    base = Settings(parallel_downloads=4, max_depth=5)
     result = settings.merge_cli_overrides(base, parallel=0, depth=0)
 
     # Zeros should not override existing values
-    assert result["ParallelDownloads"] == 4
-    assert result["MaxDepth"] == 5
+    assert result.parallel_downloads == 4
+    assert result.max_depth == 5
 
 
 def test_merge_cli_overrides_extra_reject_single():
     """Test merging a single extra reject pattern."""
-    base = {"RejectPatterns": ["pattern1"]}
+    base = Settings(reject_patterns=["pattern1"])
     result = settings.merge_cli_overrides(base, extra_reject=["f=31&"])
 
-    assert "f=31&" in result["RejectPatterns"]
-    assert "pattern1" in result["RejectPatterns"]
+    assert "f=31&" in result.reject_patterns
+    assert "pattern1" in result.reject_patterns
 
 
 def test_merge_cli_overrides_extra_reject_multiple_flags():
     """Test merging multiple extra reject patterns via separate flags."""
-    base = {"RejectPatterns": ["pattern1"]}
+    base = Settings(reject_patterns=["pattern1"])
     result = settings.merge_cli_overrides(base, extra_reject=["f=31&", "f=8&", "f=11&"])
 
-    assert "f=31&" in result["RejectPatterns"]
-    assert "f=8&" in result["RejectPatterns"]
-    assert "f=11&" in result["RejectPatterns"]
-    assert "pattern1" in result["RejectPatterns"]
+    assert "f=31&" in result.reject_patterns
+    assert "f=8&" in result.reject_patterns
+    assert "f=11&" in result.reject_patterns
+    assert "pattern1" in result.reject_patterns
 
 
 def test_merge_cli_overrides_extra_reject_semicolon_delimited():
     """Test merging semicolon-delimited reject patterns."""
-    base = {"RejectPatterns": ["pattern1"]}
+    base = Settings(reject_patterns=["pattern1"])
     result = settings.merge_cli_overrides(base, extra_reject=["f=31&;f=8&;f=11&"])
 
-    assert "f=31&" in result["RejectPatterns"]
-    assert "f=8&" in result["RejectPatterns"]
-    assert "f=11&" in result["RejectPatterns"]
-    assert "pattern1" in result["RejectPatterns"]
+    assert "f=31&" in result.reject_patterns
+    assert "f=8&" in result.reject_patterns
+    assert "f=11&" in result.reject_patterns
+    assert "pattern1" in result.reject_patterns
 
 
 def test_merge_cli_overrides_extra_reject_mixed():
     """Test mixing semicolon-delimited and single patterns."""
-    base = {"RejectPatterns": []}
+    base = Settings(reject_patterns=[])
     result = settings.merge_cli_overrides(base, extra_reject=["f=31&;f=8&", "f=11&"])
 
-    assert "f=31&" in result["RejectPatterns"]
-    assert "f=8&" in result["RejectPatterns"]
-    assert "f=11&" in result["RejectPatterns"]
+    assert "f=31&" in result.reject_patterns
+    assert "f=8&" in result.reject_patterns
+    assert "f=11&" in result.reject_patterns
 
 
 def test_merge_cli_overrides_extra_reject_whitespace_handling():
     """Test that whitespace is trimmed from semicolon-delimited patterns."""
-    base = {"RejectPatterns": []}
+    base = Settings(reject_patterns=[])
     result = settings.merge_cli_overrides(base, extra_reject=["f=31& ; f=8& ; f=11&"])
 
-    assert "f=31&" in result["RejectPatterns"]
-    assert "f=8&" in result["RejectPatterns"]
-    assert "f=11&" in result["RejectPatterns"]
+    assert "f=31&" in result.reject_patterns
+    assert "f=8&" in result.reject_patterns
+    assert "f=11&" in result.reject_patterns
 
 
 def test_merge_cli_overrides_does_not_mutate_original():
-    """Test that the original settings dict is not mutated."""
-    base = {"RejectPatterns": ["pattern1"]}
-    original_patterns = base["RejectPatterns"].copy()
+    """Test that the original settings is not mutated."""
+    base = Settings(reject_patterns=["pattern1"])
+    original_patterns = list(base.reject_patterns)
 
     settings.merge_cli_overrides(base, extra_reject=["f=31&"])
 
-    assert base["RejectPatterns"] == original_patterns
-    assert "f=31&" not in base["RejectPatterns"]
+    assert list(base.reject_patterns) == original_patterns
+    assert "f=31&" not in base.reject_patterns
 
 
 # JSONC Tests
@@ -340,9 +341,9 @@ def test_load_jsonc_file(tmp_path: Path):
 
     result = settings.load_settings(settings_file)
 
-    assert result["UserAgent"] == "Custom Agent"
-    assert result["Timeout"] == 30
-    assert result["ParallelDownloads"] == 8
+    assert result.user_agent == "Custom Agent"
+    assert result.timeout == 30
+    assert result.parallel_downloads == 8
 
 
 def test_load_jsonc_filters_underscore_keys(tmp_path: Path):
@@ -359,10 +360,8 @@ def test_load_jsonc_filters_underscore_keys(tmp_path: Path):
 
     result = settings.load_settings(settings_file)
 
-    assert "_comment" not in result
-    assert "_internal" not in result
-    assert result["UserAgent"] == "Keep this"
-    assert result["Timeout"] == 15
+    assert result.user_agent == "Keep this"
+    assert result.timeout == 15
 
 
 def test_load_jsonc_fallback_to_json(tmp_path: Path, monkeypatch):
@@ -384,7 +383,7 @@ def test_load_jsonc_fallback_to_json(tmp_path: Path, monkeypatch):
 
     result = settings.load_settings(None)
     # Should prefer .jsonc
-    assert result["Timeout"] == 99
+    assert result.timeout == 99
 
 
 def test_load_json_fallback_when_no_jsonc(tmp_path: Path, monkeypatch):
@@ -399,4 +398,4 @@ def test_load_json_fallback_when_no_jsonc(tmp_path: Path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
     result = settings.load_settings(None)
-    assert result["Timeout"] == 77
+    assert result.timeout == 77

@@ -9,9 +9,9 @@ import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from site_sucker.resume import crawl_loop as bfs_crawl_loop
+from site_sucker.settings import Settings
 from site_sucker.validate_html import print_validation_results, validate_html_files
 from site_sucker.wget import build_wget_args, get_wget_path
 
@@ -36,7 +36,7 @@ class CrawlerBase(ABC):
         url: str,
         output_dir: Path,
         target_domain: str,
-        settings: dict[str, Any],
+        settings: Settings,
     ):
         """Initialize the crawler.
 
@@ -44,7 +44,7 @@ class CrawlerBase(ABC):
             url: The seed URL to start crawling from.
             output_dir: Directory to save downloaded files.
             target_domain: Primary domain being mirrored.
-            settings: Configuration dictionary.
+            settings: Settings instance.
         """
         self.url = url
         self.output_dir = Path(output_dir)
