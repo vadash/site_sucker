@@ -1,10 +1,7 @@
 # SiteSucker — AI Agent Guide
 
 Website mirror tool. 4-pass pipeline: wget mirror → external media download → URL rewriting → offline stripping.
-
-## Pipeline Entry
-
-`mirror.py::invoke_site_mirror()` orchestrates all passes. `CrawlerBase` abstraction: `WgetCrawler` (default) or `BFSCrawler` (`--resume`).
+Entry: `mirror.py::invoke_site_mirror()`. `CrawlerBase` → `WgetCrawler` (default) | `BFSCrawler` (`--resume`).
 
 ## Module Map
 
@@ -18,150 +15,59 @@ Website mirror tool. 4-pass pipeline: wget mirror → external media download �
 | `repair_html.py` | Rewrites HTML links to local paths (BS4 DOM ops) |
 | `repair_links.py` | Rewrites CSS links via `replacement_pipeline.py` |
 | `replacement_pipeline.py` | CSS regex engine with auto-rollback on validation failure |
-| `repair_offline.py` | Removes online-only resources (data-driven `RemovalRule` list) |
+| `repair_offline.py` | Removes online-only resources (`RemovalRule` list) |
 | `config.py` | `Settings` dataclass (type-safe config) |
-| `settings.py` | Loads `settings.jsonc`, CLI overrides, range expression expansion |
-| `file_iter.py` | Shared `iter_html_files()`, `iter_css_files()`, `write_if_changed()` |
+| `settings.py` | Loads `settings.jsonc`, CLI overrides, range expansion |
+| `file_iter.py` | `iter_html_files()`, `iter_css_files()`, `write_if_changed()` |
 | `url_filter.py` | URL reject checks + internal URL extraction |
 | `paths.py` | URL-to-filepath conversion (mimics wget windows mode) |
 | `resume.py` | BFS crawler for `--resume` mode, injectable HTTP session |
 | `validate_html.py` | Post-crawl HTML integrity check |
 | `report.py` | Download summary + failures.log |
-| `__main__.py` | CLI entry, `resolve_config()` for testable config resolution |
+| `__main__.py` | CLI entry, `resolve_config()` |
 
-## Critical Design Rules
+## Design Rules
 
-- **HTML processing**: Always BeautifulSoup DOM ops — never regex on HTML
-- **CSS processing**: All regex via `replacement_pipeline.py` (auto-rollback + logging to `logs/NNNNN/`)
-- **Config**: Use `Settings` dataclass everywhere, never raw dicts
-- **File iteration**: Use `file_iter.py` helpers, never manual `os.walk` loops
-- **Logging**: Use `logging` module, never `print()`
-- **Paths**: Always `pathlib.Path`, resolve to absolute before file ops
-- **Error style**: `FileNotFoundError` for missing wget; empty list/set for "not found"; `try/except` for IO
-- **Naming conventions**: Follow PEP 8 — `snake_case` for functions/variables, `PascalCase` for classes, `UPPER_CASE` for constants (enforced by Ruff)
+- **HTML**: Always BS4 DOM ops — never regex on HTML
+- **CSS**: All regex via `replacement_pipeline.py` (auto-rollback, logs to `logs/NNNNN/`)
+- **Config**: `Settings` dataclass everywhere, never raw dicts
+- **File iteration**: `file_iter.py` helpers, never manual `os.walk`
+- **Logging**: `logging` module, never `print()`
+- **Paths**: `pathlib.Path`, resolve to absolute before file ops
+- **Errors**: `FileNotFoundError` for missing wget; empty list/set for "not found"; `try/except` for IO
+- **Naming**: PEP 8 — `snake_case`/`PascalCase`/`UPPER_CASE` (enforced by Ruff)
 
-## Running Tests & Linting
+## Commands
 
 ```bash
-# Tests (use venv python directly, NOT bare "pytest")
-.\.venv\Scripts\python.exe -m pytest              # all
+.\.venv\Scripts\python.exe -m pytest                    # tests
 .\.venv\Scripts\python.exe -m pytest --cov=site_sucker  # with coverage
-
-# Lint (Ruff — config in pyproject.toml, Python 3.12, line length 100)
-uv run ruff check src/ tests/          # check
-uv run ruff check --fix src/ tests/    # auto-fix
-
-# Pre-commit hooks (automatically run on git commit)
-uv run pre-commit install              # install hooks (one-time setup)
-uv run pre-commit run --all-files      # run manually on all files
+uv run ruff check src/ tests/                           # lint
+uv run ruff check --fix src/ tests/                     # lint --fix
+uv run pre-commit run --all-files                       # all hooks
+uv run radon cc src/ -a -s                              # complexity (C+ fails hook)
+uv run vulture src/ --min-confidence 80                 # dead code (whitelist: .vulture.whitelist)
+npx jscpd src/                                          # duplicate detection
 ```
 
-### Pre-commit Hooks
+**Pre-commit hooks** (auto on commit): Ruff, MyPy, Radon (complexity ≤10), Vulture (80% confidence), jscpd, file checks, private key detection, branch protection (no direct master commits). Install: `uv run pre-commit install`.
 
-The project uses pre-commit hooks to automatically enforce code quality before commits. Hooks run automatically on `git commit` and include:
+## Platform
 
-- **Ruff**: Linting and formatting (auto-fixes issues)
-- **MyPy**: Type checking
-- **Radon**: Cyclomatic complexity analysis (flags functions with complexity > 10)
-- **File checks**: Trailing whitespace, line endings, file size limits, merge conflicts
-- **Security**: Private key detection
-- **Branch protection**: Prevents direct commits to master
-
-Install hooks once with `uv run pre-commit install`. Hooks run automatically on each commit.
-
-### Code Complexity Analysis
-
-The project uses **Radon** for cyclomatic complexity analysis to maintain code quality:
-
-```bash
-# Run complexity analysis
-uv run radon cc src/ -a -s          # detailed analysis with scores
-uv run radon cc src/ -a -s -nb      # summary only (no individual blocks)
-
-# Generate HTML complexity report
-uv run radon cc src/ -a -s -o complexity_report.html
-```
-
-**Complexity thresholds** (automatically enforced via pre-commit):
-- Grade A (1-5): Low complexity - excellent
-- Grade B (6-10): Moderate complexity - acceptable
-- Grade C (11-20): High complexity - needs review ⚠️
-- Grade D (21-30): Very high complexity - should be refactored
-- Grade F (31+): Extreme complexity - must be refactored
-
-Functions with Grade C or higher will fail the pre-commit hook and require refactoring.
-
-### Dead Code Detection
-
-The project uses **Vulture** for dead code detection to identify unused functions, classes, and variables:
-
-```bash
-# Run dead code detection
-uv run vulture src/                           # basic scan
-uv run vulture src/ --min-confidence 80       # only show high-confidence results
-uv run vulture src/ --make-whitelist          # generate whitelist file
-```
-
-**How it works**:
-- Vulture statically analyzes Python code to find unused code (80% confidence threshold by default)
-- False positives can be suppressed using `.vulture.whitelist` in the project root
-- Automatically runs on every commit via pre-commit hook
-- Helps maintain codebase hygiene by removing dead code that accumulates during refactoring
-
-**Common false positives** (already whitelisted):
-- Public API exports and `__init__.py` imports
-- Abstract base classes and interface methods
-- Dynamically called event handlers and callbacks
-- Test fixtures and utilities
-
-When Vulture reports dead code, review it carefully before removal. Some code may be:
-- Used by external callers (library API)
-- Called dynamically via `getattr()` or string references
-- Part of a plugin system or extension mechanism
-
-### Duplicate Code Detection
-
-The project uses **jscpd** (Copy/Paste Detector) to identify duplicate code and enforce DRY (Don't Repeat Yourself) principles:
-
-```bash
-# Run duplicate code detection
-npx jscpd src/                               # basic scan
-npx jscpd src/ --min-lines 10                # only report duplicates >= 10 lines
-npx jscpd src/ --format python               # Python-specific detection
-```
-
-**How it works**:
-- jscpd analyzes code for structural duplicates (copy-pasted code blocks)
-- Detects exact duplicates and near-duplicates (similar structure with minor variations)
-- Automatically runs on every commit via pre-commit hook
-- Helps maintain code quality by identifying code that should be refactored into reusable functions
-
-**Handling duplicates**:
-- **True duplicates**: Extract common logic into shared functions/classes
-- **Similar patterns**: Consider template functions or parameterization
-- **Acceptable duplicates**: Some duplication is acceptable when extraction would reduce clarity
-
-When jscpd reports duplicate code, evaluate:
-- Can the duplicated logic be extracted into a shared utility function?
-- Would the abstraction improve or harm code readability?
-- Is the duplication intentional (e.g., domain-specific implementations)?
-
-## Platform Gotchas
-
-- **Windows only**. System `python`/`python3` shows Store prompt — always use `uv run` or `.venv\Scripts\python.exe`
-- `wget.exe` lives in `bin/`
-- Git Bash `/tmp/` maps to `C:/Users/<user>/AppData/Local/Temp/`
+- Windows only. Use `uv run` or `.venv\Scripts\python.exe` (system `python` opens Store)
+- `wget.exe` in `bin/`
+- Git Bash `/tmp/` → `C:/Users/<user>/AppData/Local/Temp/`
 
 ## Workflow
 
 1. **Bug fix**: failing test → fix → verify all tests pass
-2. **New pipeline pass**: create module → wire in `invoke_site_mirror()` → tests → update this file
-3. **New URL pattern**: add to `settings.jsonc` with comment → test in `test_wget.py` + relevant module
+2. **New pass**: create module → wire in `invoke_site_mirror()` → tests → update this file
+3. **New URL pattern**: add to `settings.jsonc` → test in `test_wget.py` + relevant module
 
-## CLI Quick Ref
+## CLI
 
 ```
 site-sucker [url] [-o DIR] [-s SETTINGS] [-d DEPTH] [-p PARALLEL] [-r PATTERN] [--resume]
 ```
 
-`--reject` supports range expressions: `{1..100}`, `{1..100..2}`, `{1..100%4,25,40}`. Semicolons or multiple flags to combine.
+`--reject` ranges: `{1..100}`, `{1..100..2}`, `{1..100%4,25,40}`. Semicolons or multiple flags to combine.
