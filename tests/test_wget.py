@@ -121,9 +121,9 @@ def test_build_wget_args_with_reject_patterns(sample_settings: Settings):
 
     # Should include reject regex for patterns
     assert "--reject-regex" in args
-    # Should include forum-specific pattern with POSIX [0-9] not \d
-    assert any("viewtopic\\.php.*&p=[0-9]+" in arg for arg in args)
-    assert any("viewtopic\\.php\\?p=[0-9]+" in arg for arg in args)
+    # Should include patterns from settings
+    assert any("action=" in arg for arg in args)
+    assert any("Special:" in arg for arg in args)
 
 
 def test_build_wget_args_with_phpbb_sort_and_sid_patterns():

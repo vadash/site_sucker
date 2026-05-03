@@ -86,11 +86,6 @@ def build_wget_args(
         reject_domains = "|".join(settings.reject_domains)
         reject_parts.append(f"({reject_domains})")
 
-    # Forum-specific: reject viewtopic.php?p= per-post duplicates
-    # Split into separate patterns to avoid POSIX ERE precedence bugs with |
-    reject_parts.append(r"viewtopic\.php.*&p=[0-9]+")
-    reject_parts.append(r"viewtopic\.php\?p=[0-9]+")
-
     if reject_parts:
         combined = "|".join(reject_parts)
         args.append("--reject-regex")

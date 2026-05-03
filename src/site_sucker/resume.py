@@ -5,6 +5,7 @@ Uses requests.Session for persistent connections and automatic retry with backof
 """
 
 import logging
+import random
 import re
 import time
 from collections import deque
@@ -228,7 +229,9 @@ class ResumeCrawler:
                 return
 
             if self.wait_seconds > 0:
-                time.sleep(self.wait_seconds)
+                # Mimic wget's --random-wait: 0.5x to 1.5x the base wait
+                jittered = self.wait_seconds * random.uniform(0.5, 1.5)
+                time.sleep(jittered)
         else:
             self.stats["cached"] += 1
             print(

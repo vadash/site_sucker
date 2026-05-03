@@ -53,6 +53,8 @@
     "coc.php", // more crap
     "posting.php", // no need posting
     "download/file.php", // attachments/avatars (large, optional; downloaded separately if needed)
+    "viewtopic.php?p=", // per-post viewtopic duplicates (?p=N direct link)
+    "viewtopic.php&", // per-post duplicates when &p=N appears after other params
     "&sk=", // Sort Key (Author, Time, Subject) - prevents re-downloading forum indexes in every sort order
     "&sd=", // Sort Direction (Ascending, Descending) - same as above
     "&st=", // Sort Time (1 day, 7 days, etc.) - same as above

@@ -27,7 +27,7 @@ def _matches_reject_rules(
         reject_domains
         and hasattr(parsed, "hostname")
         and parsed.hostname
-        and any(parsed.hostname == domain for domain in reject_domains)
+        and any(domain in parsed.hostname for domain in reject_domains)
     )
 
 
