@@ -84,12 +84,40 @@ uv run radon cc src/ -a -s -o complexity_report.html
 
 **Complexity thresholds** (automatically enforced via pre-commit):
 - Grade A (1-5): Low complexity - excellent
-- Grade B (6-10): Moderate complexity - acceptable  
+- Grade B (6-10): Moderate complexity - acceptable
 - Grade C (11-20): High complexity - needs review ⚠️
 - Grade D (21-30): Very high complexity - should be refactored
 - Grade F (31+): Extreme complexity - must be refactored
 
 Functions with Grade C or higher will fail the pre-commit hook and require refactoring.
+
+### Dead Code Detection
+
+The project uses **Vulture** for dead code detection to identify unused functions, classes, and variables:
+
+```bash
+# Run dead code detection
+uv run vulture src/                           # basic scan
+uv run vulture src/ --min-confidence 80       # only show high-confidence results
+uv run vulture src/ --make-whitelist          # generate whitelist file
+```
+
+**How it works**:
+- Vulture statically analyzes Python code to find unused code (80% confidence threshold by default)
+- False positives can be suppressed using `.vulture.whitelist` in the project root
+- Automatically runs on every commit via pre-commit hook
+- Helps maintain codebase hygiene by removing dead code that accumulates during refactoring
+
+**Common false positives** (already whitelisted):
+- Public API exports and `__init__.py` imports
+- Abstract base classes and interface methods
+- Dynamically called event handlers and callbacks
+- Test fixtures and utilities
+
+When Vulture reports dead code, review it carefully before removal. Some code may be:
+- Used by external callers (library API)
+- Called dynamically via `getattr()` or string references
+- Part of a plugin system or extension mechanism
 
 ## Platform Gotchas
 

@@ -1,0 +1,24 @@
+# Vulture whitelist for false positives
+# Format: <function_name> or <ClassName.method_name>
+# Add entries here to suppress dead code warnings that are false positives
+
+# Public API exports
+__main__.main
+__init__.*
+
+# Command-line interface patterns
+*.*_parser
+*.*_args
+*.*_config
+
+# Abstract base classes and interfaces
+CrawlerBase.*
+*.*Base
+
+# Event handlers and callbacks (called dynamically)
+on_*
+handle_*
+process_*
+
+# Test fixtures and test utilities (in tests/)
+tests.*

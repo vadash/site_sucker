@@ -74,30 +74,6 @@ def build_css_replacement_steps(
                 return f'/* @import "{import_path}" - PATH ERROR: {e} */\n'
             except Exception:
                 return match.group(0)
-            import_path = match.group(1)
-
-            # Skip external @import (http/https) - leave marker for later step
-            if import_path.startswith(("http://", "https://")):
-                return f'/* External @import "{import_path}" stripped for offline use */'
-
-            # Resolve relative import path
-            try:
-                import_file = css_dir / import_path
-
-                if import_file.is_file():
-                    try:
-                        with open(import_file, encoding="utf-8", errors="ignore") as f:
-                            imported_content = f.read()
-
-                        return f"/* Inlined from {import_path} */\n{imported_content}\n"
-                    except OSError as e:
-                        return f'/* @import "{import_path}" - READ ERROR: {e} */\n'
-                else:
-                    return f'/* @import "{import_path}" - FILE NOT FOUND */\n'
-            except (ValueError, TypeError) as e:
-                return f'/* @import "{import_path}" - PATH ERROR: {e} */\n'
-            except Exception:
-                return match.group(0)
 
         return import_pattern.sub(inline_import, content)
 

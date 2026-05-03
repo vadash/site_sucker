@@ -53,7 +53,17 @@ repos:
     hooks:
       - id: radon-complexity
         name: Radon complexity check
-        entry: radon cc -a -s src/ -nb
+        entry: uv run radon cc -a -s src/ -nb
+        language: system
+        types: [python]
+        pass_filenames: false
+
+  # Dead code detection with vulture
+  - repo: local
+    hooks:
+      - id: vulture
+        name: Vulture dead code detection
+        entry: uv run vulture src/ --min-confidence 80
         language: system
         types: [python]
         pass_filenames: false
