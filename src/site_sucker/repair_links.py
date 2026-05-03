@@ -8,8 +8,8 @@ from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
+from site_sucker.paths import get_actual_save_path, url_to_filepath
 from site_sucker.replacement_pipeline import ReplacementStep, run_replacement_pipeline
-from site_sucker.resume import get_actual_save_path, url_to_filepath
 
 
 def _repair_html_links(

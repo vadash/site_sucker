@@ -17,63 +17,8 @@ from urllib3.util.retry import Retry
 
 from bs4 import BeautifulSoup
 
-
-def url_to_filepath(url: str, output_dir: Path) -> Path:
-    """Convert a URL to its expected local file path.
-
-    Mimics wget's --restrict-file-names=windows behavior:
-    - Converts ? to @
-    - Converts / in query strings to %2F
-    - Strips fragments
-    - Handles root and trailing-slash URLs as index.html
-
-    Args:
-        url: The URL to convert.
-        output_dir: Root output directory.
-
-    Returns:
-        Expected local file path.
-    """
-    parsed = urlparse(url)
-
-    path = parsed.path
-
-    # Handle root URLs and trailing slashes
-    if not path or path.endswith("/"):
-        path = path + "index.html"
-
-    # Append query parameters (if any) - ? becomes @
-    if parsed.query:
-        escaped_query = parsed.query.replace("/", "%2F")
-        path = f"{path}@{escaped_query}"
-
-    # Build full path
-    if path.startswith("/"):
-        path = path[1:]
-
-    full_path = output_dir / path
-    return full_path
-
-
-def get_actual_save_path(expected_path: Path) -> Path:
-    """Determine the final save path (appending .html if necessary).
-
-    Since Python now controls file saving, we dictate the extension.
-    If the URL doesn't end in a known extension, we append .html.
-
-    Args:
-        expected_path: Expected path from url_to_filepath().
-
-    Returns:
-        Final save path with .html appended if needed.
-    """
-    known_extensions = {".css", ".js", ".html", ".htm", ".json", ".xml",
-                        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".bmp",
-                        ".woff", ".woff2", ".ttf", ".eot", ".otf",
-                        ".mp4", ".webm", ".avi", ".mkv", ".mov", ".mp3", ".pdf"}
-    if expected_path.suffix.lower() in known_extensions:
-        return expected_path
-    return expected_path.with_name(expected_path.name + ".html")
+from site_sucker.paths import get_actual_save_path, url_to_filepath
+from site_sucker.url_filter import should_reject_url
 
 
 def discover_links(
@@ -118,23 +63,14 @@ def discover_links(
 
         absolute_url = urljoin(base_url, url_attr)
 
-        try:
-            parsed = urlparse(absolute_url)
-        except Exception:
+        # Use shared URL filter
+        if should_reject_url(
+            absolute_url,
+            target_domain,
+            reject_patterns,
+            reject_domains,
+        ):
             return
-
-        if parsed.scheme not in ("http", "https"):
-            return
-        if parsed.hostname != target_domain:
-            return
-
-        if reject_patterns:
-            if any(pattern in absolute_url for pattern in reject_patterns):
-                return
-
-        if reject_domains:
-            if any(parsed.hostname == domain for domain in reject_domains if parsed.hostname):
-                return
 
         normalized = absolute_url.split("#")[0]
         links.add(normalized)
@@ -194,23 +130,14 @@ def discover_css_imports(
 
         absolute_url = urljoin(base_url, import_path)
 
-        try:
-            parsed = urlparse(absolute_url)
-        except Exception:
+        # Use shared URL filter
+        if should_reject_url(
+            absolute_url,
+            target_domain,
+            reject_patterns,
+            reject_domains,
+        ):
             continue
-
-        if parsed.scheme not in ("http", "https"):
-            continue
-        if parsed.hostname != target_domain:
-            continue
-
-        if reject_patterns:
-            if any(pattern in absolute_url for pattern in reject_patterns):
-                continue
-
-        if reject_domains:
-            if any(parsed.hostname == domain for domain in reject_domains if parsed.hostname):
-                continue
 
         imports.add(absolute_url)
 

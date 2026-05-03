@@ -6,12 +6,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
+from site_sucker.crawler import BFSCrawler, CrawlResult, WgetCrawler
 from site_sucker.media import get_external_media
 from site_sucker.repair_links import repair_external_links, repair_internal_links
 from site_sucker.repair_offline import repair_offline_html
-from site_sucker.report import write_site_report
-from site_sucker.resume import crawl_loop
-from site_sucker.validate_html import print_validation_results, validate_html_files
 from site_sucker.wget import build_wget_args, get_wget_path
 
 
@@ -22,7 +20,7 @@ def invoke_site_mirror(
     settings: dict[str, Any],
     resume: bool = False,
 ) -> list[str]:
-    """Execute the two-pass site mirroring process.
+    """Execute the four-pass site mirroring process.
 
     Orchestrates:
     1. Pass 1: Full site mirror using wget --mirror (or resume mode with BFS crawler)
@@ -43,48 +41,15 @@ def invoke_site_mirror(
     output_dir = Path(output_dir)
     failed_urls = []
 
-    # Disable proxies for subprocess calls
-    env = os.environ.copy()
-    for var in ["http_proxy", "https_proxy", "all_proxy", "HTTP_PROXY", "HTTPS_PROXY"]:
-        env.pop(var, None)
+    # ── PASS 1: Full site mirror (unified crawler interface) ───────────────────────
+    crawler_cls = BFSCrawler if resume else WgetCrawler
+    crawler = crawler_cls(url, output_dir, target_domain, settings)
+    crawl_result: CrawlResult = crawler.run()
 
-    wget_path = get_wget_path()
-
-    # ── PASS 1: Full site mirror (or resume mode) ───────────────────────────────────
-    if resume:
-        print(f"\n[1/4] Resume mode: Python BFS crawler (bypassing 429 bot protection) ...")
-        crawl_loop(url, output_dir, target_domain, settings)
-
-        # Rewrite internal HTML-to-HTML links (wget didn't do --convert-links)
+    # If BFS mode was used, rewrite internal HTML-to-HTML links
+    # (wget didn't run, so --convert-links wasn't applied)
+    if crawl_result.needs_internal_link_repair:
         repair_internal_links(output_dir, target_domain)
-    else:
-        print(f"\n[1/4] Mirroring {url} (Proxies Disabled, Timeouts Active) ...")
-
-        pass1_args = build_wget_args(
-            settings,
-            output_dir,
-            extra_args=[
-                "-r",
-                "-N",
-                "--no-remove-listing",
-                "--no-parent",
-                "--page-requisites",
-                f"--domains={target_domain}",
-            ],
-        )
-
-        result = subprocess.run(
-            [str(wget_path), *pass1_args, url],
-            capture_output=False,
-            env=env,
-        )
-
-        if result.returncode not in (0, 8):
-            print(f"Warning: wget pass 1 exited with code {result.returncode}")
-
-        # ── VALIDATION: Check HTML integrity ────────────────────────────────────────
-        validation_results = validate_html_files(output_dir)
-        print_validation_results(validation_results)
 
     # Create log directory for failed replacements (CSS pipeline only)
     log_dir = output_dir / "logs"

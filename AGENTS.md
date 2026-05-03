@@ -107,15 +107,22 @@ When resuming an interrupted download, SiteSucker can use a Python-based BFS cra
 
 ### Running Tests
 
+IMPORTANT: Use the direct venv Python executable for running tests.
+The `uv run pytest` command will fail because pytest is installed in the venv,
+not available as a standalone command.
+
 ```bash
+# Install dev dependencies (pytest, pytest-cov) - ONE TIME SETUP
+uv pip install -e ".[dev]"
+
 # Run all tests
-uv run pytest
+.\.venv\Scripts\python.exe -m pytest
 
 # With coverage
-uv run pytest --cov=site_sucker
+.\.venv\Scripts\python.exe -m pytest --cov=site_sucker
 
 # Specific module
-uv run pytest tests/test_media.py
+.\.venv\Scripts\python.exe -m pytest tests/test_media.py
 ```
 
 ### Test Patterns
