@@ -9,6 +9,7 @@ from site_sucker.settings import Settings
 
 # Range Expression Tests
 
+
 def test_expand_reject_expression_no_expression():
     """Test that patterns without expressions are returned as-is."""
     result = settings._expand_reject_expression("action=")
@@ -62,7 +63,18 @@ def test_expand_reject_expression_single_value():
 def test_expand_reject_expression_negative_step():
     """Test range with negative step."""
     result = settings._expand_reject_expression("f={10..1..-1}&")
-    assert result == ["f=10&", "f=9&", "f=8&", "f=7&", "f=6&", "f=5&", "f=4&", "f=3&", "f=2&", "f=1&"]
+    assert result == [
+        "f=10&",
+        "f=9&",
+        "f=8&",
+        "f=7&",
+        "f=6&",
+        "f=5&",
+        "f=4&",
+        "f=3&",
+        "f=2&",
+        "f=1&",
+    ]
 
 
 def test_expand_reject_expression_multiple_exclusions():
@@ -70,7 +82,20 @@ def test_expand_reject_expression_multiple_exclusions():
     result = settings._expand_reject_expression("id={1..20%2,3,5,7,11,13,17,19}&")
     # Should only include prime numbers from 1..20 (excluding the primes listed as exclusions)
     # Wait, this is excluding primes, so it should include non-primes
-    expected = ["id=1&", "id=4&", "id=6&", "id=8&", "id=9&", "id=10&", "id=12&", "id=14&", "id=15&", "id=16&", "id=18&", "id=20&"]
+    expected = [
+        "id=1&",
+        "id=4&",
+        "id=6&",
+        "id=8&",
+        "id=9&",
+        "id=10&",
+        "id=12&",
+        "id=14&",
+        "id=15&",
+        "id=16&",
+        "id=18&",
+        "id=20&",
+    ]
     assert result == expected
 
 
@@ -259,12 +284,13 @@ def test_merge_cli_overrides_does_not_mutate_original():
 
 # JSONC Tests
 
+
 def test_strip_jsonc_line_comments():
     """Test removing line comments."""
-    content = '''{
+    content = """{
   "key": "value",  // this is a comment
   "another": "test"
-}'''
+}"""
     result = settings._strip_jsonc_comments(content)
     assert "// this is a comment" not in result
     assert '"key": "value",' in result
@@ -273,14 +299,14 @@ def test_strip_jsonc_line_comments():
 
 def test_strip_jsonc_block_comments():
     """Test removing block comments."""
-    content = '''{
+    content = """{
   /* this is a block comment */
   "key": "value",
   /* multi
      line
      comment */
   "another": "test"
-}'''
+}"""
     result = settings._strip_jsonc_comments(content)
     assert "/* this is a block comment */" not in result
     assert "/* multi" not in result
@@ -290,10 +316,10 @@ def test_strip_jsonc_block_comments():
 
 def test_strip_jsonc_preserves_urls():
     """Test that URLs with :// are preserved."""
-    content = r'''{
+    content = r"""{
   "url": "https://example.com",  // comment
   "another": "http://test.org"
-}'''
+}"""
     result = settings._strip_jsonc_comments(content)
     assert '"url": "https://example.com",' in result
     assert '"another": "http://test.org"' in result
@@ -301,39 +327,39 @@ def test_strip_jsonc_preserves_urls():
 
 def test_strip_jsonc_preserves_slashes_in_strings():
     """Test that // inside strings are preserved."""
-    content = r'''{
+    content = r"""{
   "path": "C:\\Users\\test",  // comment
   "regex": "//pattern",
   "empty": ""
-}'''
+}"""
     result = settings._strip_jsonc_comments(content)
     # After comment removal, the Windows path backslashes remain
     assert '"path": "C:\\\\Users\\\\test",' in result
     assert '"regex": "//pattern"' in result
-    assert '// comment' not in result
+    assert "// comment" not in result
 
 
 def test_strip_jsonc_escaped_quotes():
     """Test handling of escaped quotes in strings."""
-    content = r'''{
+    content = r"""{
   "text": "say \"hello\"", // comment after
   "empty": ""
-}'''
+}"""
     result = settings._strip_jsonc_comments(content)
     assert '"text": "say \\"hello\\"",' in result
-    assert '// comment after' not in result
+    assert "// comment after" not in result
 
 
 def test_load_jsonc_file(tmp_path: Path):
     """Test loading settings from a JSONC file."""
     settings_file = tmp_path / "test_settings.jsonc"
-    content = '''{
+    content = """{
   // This is a comment
   "UserAgent": "Custom Agent",
   "Timeout": 30,
   /* Block comment */
   "ParallelDownloads": 8
-}'''
+}"""
     with open(settings_file, "w", encoding="utf-8") as f:
         f.write(content)
 
@@ -347,12 +373,12 @@ def test_load_jsonc_file(tmp_path: Path):
 def test_load_jsonc_filters_underscore_keys(tmp_path: Path):
     """Test that keys starting with _ are filtered out (backwards compat)."""
     settings_file = tmp_path / "old_style.jsonc"
-    content = '''{
+    content = """{
   "_comment": "This is an old-style comment key",
   "_internal": "should be filtered",
   "UserAgent": "Keep this",
   "Timeout": 15
-}'''
+}"""
     with open(settings_file, "w", encoding="utf-8") as f:
         f.write(content)
 

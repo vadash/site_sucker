@@ -33,6 +33,7 @@ class TestParseArgs:
         """Test that default argument values are correct."""
         # Simulate no command-line arguments
         import sys
+
         old_argv = sys.argv
         try:
             sys.argv = ["site-sucker"]
@@ -50,6 +51,7 @@ class TestParseArgs:
     def test_url_provided(self):
         """Test parsing with URL provided."""
         import sys
+
         old_argv = sys.argv
         try:
             sys.argv = ["site-sucker", "https://example.com"]
@@ -61,18 +63,25 @@ class TestParseArgs:
     def test_all_options(self):
         """Test parsing with all options provided."""
         import sys
+
         old_argv = sys.argv
         try:
             sys.argv = [
                 "site-sucker",
                 "https://example.com",
-                "-o", "custom_output",
-                "-s", "custom_settings.json",
-                "-d", "5",
-                "-p", "8",
-                "-r", "action=",
-                "-r", "Special:",
-                "--resume"
+                "-o",
+                "custom_output",
+                "-s",
+                "custom_settings.json",
+                "-d",
+                "5",
+                "-p",
+                "8",
+                "-r",
+                "action=",
+                "-r",
+                "Special:",
+                "--resume",
             ]
             args = parse_args()
             assert args.url == "https://example.com"
@@ -268,8 +277,10 @@ class TestResolveConfig:
         # Mock input to provide URL, output dir, depth, and parallel
         # The function prompts for these values in order
         inputs = ["https://example.com", "", "", ""]
+
         def mock_input(x):
             return inputs.pop(0) if inputs else ""
+
         monkeypatch.setattr("builtins.input", mock_input)
 
         url, output_path, target_domain, _ = resolve_config(args, cfg)

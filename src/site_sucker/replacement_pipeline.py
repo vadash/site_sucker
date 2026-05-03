@@ -23,6 +23,7 @@ class ReplacementStep:
         replacement: Replacement string or callable for re.sub(), used only if pattern is a regex.
         flags: Regex flags (only used if pattern is a string).
     """
+
     name: str
     pattern: re.Pattern[str] | Callable[[str], str]
     replacement: str | Callable[[re.Match[str]], str] | None = None
@@ -31,10 +32,12 @@ class ReplacementStep:
 
 def _is_css_file(file_path: Path) -> bool:
     """Check if a file is a CSS file."""
-    return file_path.suffix.lower() == '.css'
+    return file_path.suffix.lower() == ".css"
 
 
-def _validate_content(content: str, file_path: Path, original_content: str = "") -> tuple[bool, str]:
+def _validate_content(
+    content: str, file_path: Path, original_content: str = ""
+) -> tuple[bool, str]:
     """Validate content after a replacement step.
 
     For HTML files, checks that no structural tags were accidentally removed:
@@ -61,18 +64,18 @@ def _validate_content(content: str, file_path: Path, original_content: str = "")
         # HTML validation - check that no structural tags were removed
         issues = []
 
-        had_head_close = bool(re.search(r'</head\s*>', original_content, re.IGNORECASE))
-        has_head_close = bool(re.search(r'</head\s*>', content, re.IGNORECASE))
+        had_head_close = bool(re.search(r"</head\s*>", original_content, re.IGNORECASE))
+        has_head_close = bool(re.search(r"</head\s*>", content, re.IGNORECASE))
         if had_head_close and not has_head_close:
             issues.append("missing </head>")
 
-        had_body_open = bool(re.search(r'<body[^>]*>', original_content, re.IGNORECASE))
-        has_body_open = bool(re.search(r'<body[^>]*>', content, re.IGNORECASE))
+        had_body_open = bool(re.search(r"<body[^>]*>", original_content, re.IGNORECASE))
+        has_body_open = bool(re.search(r"<body[^>]*>", content, re.IGNORECASE))
         if had_body_open and not has_body_open:
             issues.append("missing <body>")
 
-        had_body_close = bool(re.search(r'</body\s*>', original_content, re.IGNORECASE))
-        has_body_close = bool(re.search(r'</body\s*>', content, re.IGNORECASE))
+        had_body_close = bool(re.search(r"</body\s*>", original_content, re.IGNORECASE))
+        has_body_close = bool(re.search(r"</body\s*>", content, re.IGNORECASE))
         if had_body_close and not has_body_close:
             issues.append("missing </body>")
 

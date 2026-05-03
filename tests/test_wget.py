@@ -22,6 +22,7 @@ def test_get_wget_path_exists(sample_settings: Settings, tmp_path: Path):
     # Since this is complex, we'll just test that the function works
     # when called from the actual project structure
     import site_sucker.wget as wget_module
+
     original_file = wget_module.__file__
 
     try:
@@ -41,6 +42,7 @@ def test_get_wget_path_exists(sample_settings: Settings, tmp_path: Path):
 def test_get_wget_path_not_found(tmp_path: Path):
     """Test get_wget_path when wget.exe doesn't exist."""
     import site_sucker.wget as wget_module
+
     original_file = wget_module.__file__
 
     try:
@@ -229,4 +231,3 @@ def test_get_clean_env_returns_copy():
     # Modifying one should not affect the other
     env1["TEST_VAR"] = "test_value"
     assert "TEST_VAR" not in env2
-

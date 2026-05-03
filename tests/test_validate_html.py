@@ -15,7 +15,7 @@ from site_sucker.validate_html import (
 def test_validate_html_valid_page(tmp_path: Path):
     """Test validation of a structurally complete HTML file."""
     html_file = tmp_path / "test.html"
-    html_content = '''<!DOCTYPE html>
+    html_content = """<!DOCTYPE html>
 <html>
 <head>
     <title>Test</title>
@@ -24,7 +24,7 @@ def test_validate_html_valid_page(tmp_path: Path):
     <h1>Content</h1>
     <p>This is a test page with substantial content.</p>
 </body>
-</html>'''
+</html>"""
     html_file.write_text(html_content)
 
     results = validate_html_files(tmp_path)
@@ -38,12 +38,12 @@ def test_validate_html_valid_page(tmp_path: Path):
 def test_validate_html_missing_head(tmp_path: Path):
     """Test detection of missing head element."""
     html_file = tmp_path / "test.html"
-    html_content = '''<!DOCTYPE html>
+    html_content = """<!DOCTYPE html>
 <html>
 <body>
     <h1>Content</h1>
 </body>
-</html>'''
+</html>"""
     html_file.write_text(html_content)
 
     results = validate_html_files(tmp_path)
@@ -55,13 +55,13 @@ def test_validate_html_missing_head(tmp_path: Path):
 def test_validate_html_missing_body(tmp_path: Path):
     """Test detection of missing body element."""
     html_file = tmp_path / "test.html"
-    html_content = '''<!DOCTYPE html>
+    html_content = """<!DOCTYPE html>
 <html>
 <head>
     <title>Test</title>
 </head>
     <h1>Content</h1>
-</html>'''
+</html>"""
     html_file.write_text(html_content)
 
     results = validate_html_files(tmp_path)
@@ -73,7 +73,7 @@ def test_validate_html_missing_body(tmp_path: Path):
 def test_validate_html_empty_body(tmp_path: Path):
     """Test detection of empty body content."""
     html_file = tmp_path / "test.html"
-    html_content = '''<!DOCTYPE html>
+    html_content = """<!DOCTYPE html>
 <html>
 <head>
     <title>Test</title>
@@ -81,7 +81,7 @@ def test_validate_html_empty_body(tmp_path: Path):
 <body>
     <script>console.log("test");</script>
 </body>
-</html>'''
+</html>"""
     html_file.write_text(html_content)
 
     results = validate_html_files(tmp_path)
@@ -93,7 +93,7 @@ def test_validate_html_empty_body(tmp_path: Path):
 def test_validate_html_body_with_only_whitespace(tmp_path: Path):
     """Test detection of body with only whitespace content."""
     html_file = tmp_path / "test.html"
-    html_content = '''<!DOCTYPE html>
+    html_content = """<!DOCTYPE html>
 <html>
 <head>
     <title>Test</title>
@@ -101,7 +101,7 @@ def test_validate_html_body_with_only_whitespace(tmp_path: Path):
 <body>
     \n\t
 </body>
-</html>'''
+</html>"""
     html_file.write_text(html_content)
 
     results = validate_html_files(tmp_path)
@@ -113,12 +113,12 @@ def test_validate_html_body_with_only_whitespace(tmp_path: Path):
 def test_validate_html_multiple_issues(tmp_path: Path):
     """Test detection of multiple issues in one file."""
     html_file = tmp_path / "test.html"
-    html_content = '''<!DOCTYPE html>
+    html_content = """<!DOCTYPE html>
 <html>
 <body>
     <script>console.log("test");</script>
 </body>
-</html>'''
+</html>"""
     html_file.write_text(html_content)
 
     results = validate_html_files(tmp_path)
@@ -133,25 +133,25 @@ def test_validate_html_multiple_issues(tmp_path: Path):
 def test_validate_html_multiple_files(tmp_path: Path):
     """Test validation across multiple HTML files."""
     # Valid file
-    (tmp_path / "valid.html").write_text('''<!DOCTYPE html>
+    (tmp_path / "valid.html").write_text("""<!DOCTYPE html>
 <html>
 <head><title>Valid</title></head>
 <body><h1>Substantial content here</h1></body>
-</html>''')
+</html>""")
 
     # Invalid file - missing head
-    (tmp_path / "invalid.html").write_text('''<!DOCTYPE html>
+    (tmp_path / "invalid.html").write_text("""<!DOCTYPE html>
 <html>
 <body><h1>Content</h1>
-</html>''')
+</html>""")
 
     # Empty body file
-    (tmp_path / "empty.html").write_text('''<!DOCTYPE html>
+    (tmp_path / "empty.html").write_text("""<!DOCTYPE html>
 <html>
 <head><title>Empty</title></head>
 <body>
 </body>
-</html>''')
+</html>""")
 
     results = validate_html_files(tmp_path)
 
@@ -165,7 +165,7 @@ def test_validate_html_multiple_files(tmp_path: Path):
 def test_validate_html_case_insensitive(tmp_path: Path):
     """Test that HTML tag detection is case-insensitive."""
     html_file = tmp_path / "test.html"
-    html_content = '''<!DOCTYPE html>
+    html_content = """<!DOCTYPE html>
 <HTML>
 <HEAD>
     <title>Test</title>
@@ -174,7 +174,7 @@ def test_validate_html_case_insensitive(tmp_path: Path):
     <h1>Welcome to the Test Page</h1>
     <p>This page has enough content to pass validation.</p>
 </BODY>
-</HTML>'''
+</HTML>"""
     html_file.write_text(html_content)
 
     results = validate_html_files(tmp_path)
@@ -185,7 +185,7 @@ def test_validate_html_case_insensitive(tmp_path: Path):
 def test_validate_html_body_with_scripts_and_styles(tmp_path: Path):
     """Test that body content detection ignores scripts and styles."""
     html_file = tmp_path / "test.html"
-    html_content = '''<!DOCTYPE html>
+    html_content = """<!DOCTYPE html>
 <html>
 <head>
     <title>Test</title>
@@ -199,7 +199,7 @@ def test_validate_html_body_with_scripts_and_styles(tmp_path: Path):
     </style>
     <!-- This is a comment -->
 </body>
-</html>'''
+</html>"""
     html_file.write_text(html_content)
 
     results = validate_html_files(tmp_path)
@@ -211,7 +211,7 @@ def test_validate_html_body_with_scripts_and_styles(tmp_path: Path):
 def test_validate_html_minimal_valid_content(tmp_path: Path):
     """Test that minimal but meaningful content passes validation."""
     html_file = tmp_path / "test.html"
-    html_content = '''<!DOCTYPE html>
+    html_content = """<!DOCTYPE html>
 <html>
 <head>
     <title>Test</title>
@@ -219,7 +219,7 @@ def test_validate_html_minimal_valid_content(tmp_path: Path):
 <body>
     <h1>Hi</h1>
 </body>
-</html>'''
+</html>"""
     html_file.write_text(html_content)
 
     results = validate_html_files(tmp_path)
@@ -232,7 +232,7 @@ def test_validate_html_minimal_valid_content(tmp_path: Path):
 def test_validate_html_substantial_content(tmp_path: Path):
     """Test that substantial content passes validation."""
     html_file = tmp_path / "test.html"
-    html_content = '''<!DOCTYPE html>
+    html_content = """<!DOCTYPE html>
 <html>
 <head>
     <title>Test</title>
@@ -241,7 +241,7 @@ def test_validate_html_substantial_content(tmp_path: Path):
     <h1>Welcome to the Test Page</h1>
     <p>This page has enough content to be considered valid.</p>
 </body>
-</html>'''
+</html>"""
     html_file.write_text(html_content)
 
     results = validate_html_files(tmp_path)
@@ -270,8 +270,8 @@ def test_print_validation_results_invalid(caplog: pytest.LogCaptureFixture, tmp_
     """Test print output for invalid results."""
     caplog.set_level(logging.INFO)
     # Create files to report
-    (tmp_path / "broken1.html").write_text('<html><body></body></html>')
-    (tmp_path / "broken2.html").write_text('<html><body></body></html>')
+    (tmp_path / "broken1.html").write_text("<html><body></body></html>")
+    (tmp_path / "broken2.html").write_text("<html><body></body></html>")
 
     results = {
         "missing_head": ["broken1.html", "broken2.html"],
@@ -294,13 +294,13 @@ def test_validate_html_binary_content_del_char(tmp_path: Path):
     """Test detection of DEL character (0x7F) in HTML content."""
     html_file = tmp_path / "test.html"
     # Simulates the corruption seen in real index.html download
-    html_content = '<!DOCTYPE html>\n<html>\n<head><title>Test</title></head>\n<body>\n'
-    html_content += '<h1>Welcome to the Test Page</h1>\n'
-    html_content += '<p>Some content here</p>\n'
+    html_content = "<!DOCTYPE html>\n<html>\n<head><title>Test</title></head>\n<body>\n"
+    html_content += "<h1>Welcome to the Test Page</h1>\n"
+    html_content += "<p>Some content here</p>\n"
     # Inject binary garbage with DEL char (0x7F)
-    html_content += '\x7f\xb0\xd0\xbd\xd0\xb8\xd0\xbe'
-    html_content += '\n</body>\n</html>'
-    html_file.write_bytes(html_content.encode('utf-8', errors='surrogateescape'))
+    html_content += "\x7f\xb0\xd0\xbd\xd0\xb8\xd0\xbe"
+    html_content += "\n</body>\n</html>"
+    html_file.write_bytes(html_content.encode("utf-8", errors="surrogateescape"))
 
     results = validate_html_files(tmp_path)
 
@@ -311,11 +311,11 @@ def test_validate_html_binary_content_del_char(tmp_path: Path):
 def test_validate_html_binary_content_null_byte(tmp_path: Path):
     """Test detection of null byte (0x00) in HTML content."""
     html_file = tmp_path / "test.html"
-    html_content = '<!DOCTYPE html>\n<html>\n<head><title>Test</title></head>\n<body>\n'
-    html_content += '<h1>Welcome to the Test Page</h1>\n'
-    html_content += '\x00corrupted'
-    html_content += '\n</body>\n</html>'
-    html_file.write_bytes(html_content.encode('utf-8', errors='surrogateescape'))
+    html_content = "<!DOCTYPE html>\n<html>\n<head><title>Test</title></head>\n<body>\n"
+    html_content += "<h1>Welcome to the Test Page</h1>\n"
+    html_content += "\x00corrupted"
+    html_content += "\n</body>\n</html>"
+    html_file.write_bytes(html_content.encode("utf-8", errors="surrogateescape"))
 
     results = validate_html_files(tmp_path)
 
@@ -325,10 +325,10 @@ def test_validate_html_binary_content_null_byte(tmp_path: Path):
 
 def test_validate_html_binary_content_control_chars(tmp_path: Path):
     """Test detection of various control characters in HTML."""
-    html_content = '<!DOCTYPE html>\n<html>\n<head><title>T</title></head>\n<body>\n'
-    html_content += '<h1>Welcome to the Test Page with content</h1>\n'
-    html_content += 'BINARY\x01\x02\x03\x04DATA'
-    html_content += '\n</body>\n</html>'
+    html_content = "<!DOCTYPE html>\n<html>\n<head><title>T</title></head>\n<body>\n"
+    html_content += "<h1>Welcome to the Test Page with content</h1>\n"
+    html_content += "BINARY\x01\x02\x03\x04DATA"
+    html_content += "\n</body>\n</html>"
 
     result = validate_html_string(html_content)
 
@@ -339,7 +339,7 @@ def test_validate_html_binary_content_control_chars(tmp_path: Path):
 def test_validate_html_no_binary_clean_content(tmp_path: Path):
     """Test that clean HTML passes binary content check."""
     html_file = tmp_path / "test.html"
-    html_content = '''<!DOCTYPE html>
+    html_content = """<!DOCTYPE html>
 <html>
 <head>
     <title>Test</title>
@@ -348,7 +348,7 @@ def test_validate_html_no_binary_clean_content(tmp_path: Path):
     <h1>Welcome to the Test Page</h1>
     <p>Normal content with tabs\tand newlines\nare fine.</p>
 </body>
-</html>'''
+</html>"""
     html_file.write_text(html_content)
 
     results = validate_html_files(tmp_path)

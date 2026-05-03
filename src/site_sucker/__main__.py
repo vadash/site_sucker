@@ -15,9 +15,7 @@ logger = logging.getLogger(__name__)
 def setup_logging() -> None:
     """Configure logging for the application."""
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(message)s',
-        handlers=[logging.StreamHandler()]
+        level=logging.INFO, format="%(message)s", handlers=[logging.StreamHandler()]
     )
 
 
@@ -59,52 +57,61 @@ Examples:
     )
 
     parser.add_argument(
-        "-o", "--output-dir",
+        "-o",
+        "--output-dir",
         help="Output directory path (default: ./downloads/<domain>)",
     )
 
     parser.add_argument(
-        "-s", "--settings",
+        "-s",
+        "--settings",
         dest="settings_path",
         help="Path to custom settings.jsonc (default: ./settings.jsonc)",
     )
 
     parser.add_argument(
-        "-d", "--depth",
+        "-d",
+        "--depth",
         type=int,
         default=0,
         help="Maximum recursion depth (default: 0 = unlimited)",
     )
 
     parser.add_argument(
-        "-p", "--parallel",
+        "-p",
+        "--parallel",
         type=int,
         default=4,
         help="Number of parallel downloads for external media (default: 4)",
     )
 
     parser.add_argument(
-        "-r", "--reject",
+        "-r",
+        "--reject",
         dest="extra_reject",
         action="append",
         help="Additional URL patterns to reject. Use ; for multiple patterns. "
-             "Supports range expressions: {1..100}, {1..100..2}, {1..100%%4,25,40}. "
-             "Example: --reject 'f={1..100%%4,25,40}&' rejects forum IDs 1-100 except 4,25,40",
+        "Supports range expressions: {1..100}, {1..100..2}, {1..100%%4,25,40}. "
+        "Example: --reject 'f={1..100%%4,25,40}&' rejects forum IDs 1-100 except 4,25,40",
     )
 
     parser.add_argument(
         "--resume",
         action="store_true",
         help="Resume an interrupted download from existing output directory. "
-             "Uses Python BFS crawler instead of wget --mirror to bypass 429 bot protection. "
-             "Requires --output-dir pointing to existing download.",
+        "Uses Python BFS crawler instead of wget --mirror to bypass 429 bot protection. "
+        "Requires --output-dir pointing to existing download.",
     )
 
     return parser.parse_args()
 
 
-def interactive_prompt(default_url: str = "", default_output: str = "",
-                       default_depth: int = 0, default_parallel: int = 4) -> tuple[str, str, int, int]:
+def interactive_prompt(
+    default_url: str = "",
+    default_output: str = "",
+    default_depth: int = 0,
+    default_parallel: int = 4,
+) -> tuple[str, str, int, int]:
     """Prompt user for missing parameters interactively.
 
     Args:
@@ -143,7 +150,9 @@ def interactive_prompt(default_url: str = "", default_output: str = "",
     return url, output_dir, depth, parallel
 
 
-def resolve_config(args: argparse.Namespace, cfg: settings.Settings) -> tuple[str, Path, str, settings.Settings]:
+def resolve_config(
+    args: argparse.Namespace, cfg: settings.Settings
+) -> tuple[str, Path, str, settings.Settings]:
     """Resolve configuration from CLI arguments and settings.
 
     This function extracts the logic between argument parsing and pipeline invocation,

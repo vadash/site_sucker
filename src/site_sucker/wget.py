@@ -23,8 +23,7 @@ def get_wget_path() -> Path:
 
     if not wget_path.exists():
         raise FileNotFoundError(
-            f"wget.exe not found at: {wget_path}. "
-            "Please ensure wget.exe is in the bin/ directory."
+            f"wget.exe not found at: {wget_path}. Please ensure wget.exe is in the bin/ directory."
         )
 
     return wget_path
@@ -48,7 +47,8 @@ def build_wget_args(
         List of wget command-line arguments.
     """
     args = [
-        "-e", "robots=off",
+        "-e",
+        "robots=off",
         "--no-proxy",
         "--no-verbose",
         "--restrict-file-names=windows",

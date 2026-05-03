@@ -27,6 +27,7 @@ class Settings:
         reject_domains: Exact domain names to reject.
         media_extensions: File extensions to download as media.
     """
+
     user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     timeout: int = 15
     retries: int = 3
@@ -36,11 +37,26 @@ class Settings:
     parallel_downloads: int = 2
     reject_patterns: list[str] = field(default_factory=list)
     reject_domains: list[str] = field(default_factory=list)
-    media_extensions: list[str] = field(default_factory=lambda: [
-        ".png", ".jpg", ".jpeg", ".gif", ".webp",
-        ".mp4", ".webm", ".avi", ".mkv", ".mov",
-        ".svg", ".ico", ".bmp", ".css", ".js", ".woff2"
-    ])
+    media_extensions: list[str] = field(
+        default_factory=lambda: [
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".webp",
+            ".mp4",
+            ".webm",
+            ".avi",
+            ".mkv",
+            ".mov",
+            ".svg",
+            ".ico",
+            ".bmp",
+            ".css",
+            ".js",
+            ".woff2",
+        ]
+    )
 
     def to_legacy_dict(self) -> dict[str, Any]:
         """Convert Settings to legacy dict format for backwards compatibility.
@@ -72,7 +88,9 @@ class Settings:
             Settings instance.
         """
         return cls(
-            user_agent=data.get("UserAgent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"),
+            user_agent=data.get(
+                "UserAgent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            ),
             timeout=data.get("Timeout", 15),
             retries=data.get("Retries", 3),
             max_depth=data.get("MaxDepth", 0),
@@ -81,11 +99,27 @@ class Settings:
             parallel_downloads=data.get("ParallelDownloads", 2),
             reject_patterns=data.get("RejectPatterns", []),
             reject_domains=data.get("RejectDomains", []),
-            media_extensions=data.get("MediaExtensions", [
-                ".png", ".jpg", ".jpeg", ".gif", ".webp",
-                ".mp4", ".webm", ".avi", ".mkv", ".mov",
-                ".svg", ".ico", ".bmp", ".css", ".js", ".woff2"
-            ]),
+            media_extensions=data.get(
+                "MediaExtensions",
+                [
+                    ".png",
+                    ".jpg",
+                    ".jpeg",
+                    ".gif",
+                    ".webp",
+                    ".mp4",
+                    ".webm",
+                    ".avi",
+                    ".mkv",
+                    ".mov",
+                    ".svg",
+                    ".ico",
+                    ".bmp",
+                    ".css",
+                    ".js",
+                    ".woff2",
+                ],
+            ),
         )
 
 
@@ -114,7 +148,7 @@ def _expand_reject_expression(pattern: str) -> list[str]:
     # Use regex to find expressions, but we need to handle nested braces properly
     # For simplicity, we'll find the outermost {...} and expand it
 
-    expr_pattern = r'\{([^{}]+)\}'
+    expr_pattern = r"\{([^{}]+)\}"
     matches = list(re.finditer(expr_pattern, pattern))
 
     if not matches:
@@ -190,19 +224,19 @@ def _parse_range_expression(expr: str) -> list[str]:
         List of string values from the expanded range.
     """
     # Check for exclusions (%)
-    if '%' in expr:
-        range_part, exclude_part = expr.split('%', 1)
-        excludes = {e.strip() for e in exclude_part.split(',') if e.strip()}
+    if "%" in expr:
+        range_part, exclude_part = expr.split("%", 1)
+        excludes = {e.strip() for e in exclude_part.split(",") if e.strip()}
     else:
         range_part = expr
         excludes = set()
 
     # Parse range part: START..END or START..END..STEP
-    if '..' not in range_part:
+    if ".." not in range_part:
         # Not a valid range expression, return as-is
         return [expr]
 
-    parts = range_part.split('..')
+    parts = range_part.split("..")
     if len(parts) < 2 or len(parts) > 3:
         # Invalid format, return as-is
         return [expr]
@@ -250,13 +284,13 @@ def _strip_jsonc_comments(content: str) -> str:
     """
     # Remove block comments /* ... */
     # Use a negative lookahead to avoid matching inside strings
-    pattern_block = r'/\*(?:(?!\*/)[\s\S])*\*/'
-    content = re.sub(pattern_block, '', content)
+    pattern_block = r"/\*(?:(?!\*/)[\s\S])*\*/"
+    content = re.sub(pattern_block, "", content)
 
     # Remove line comments // ...
     # Must handle: URLs with "://", strings containing "//", etc.
     # Strategy: remove // comments only when not inside a string
-    lines = content.split('\n')
+    lines = content.split("\n")
     result_lines = []
     for line in lines:
         in_string = False
@@ -268,7 +302,7 @@ def _strip_jsonc_comments(content: str) -> str:
                 escape = False
                 continue
 
-            if char == '\\':
+            if char == "\\":
                 escape = True
                 continue
 
@@ -276,7 +310,7 @@ def _strip_jsonc_comments(content: str) -> str:
                 in_string = not in_string
                 continue
 
-            if not in_string and char == '/' and i + 1 < len(line) and line[i + 1] == '/':
+            if not in_string and char == "/" and i + 1 < len(line) and line[i + 1] == "/":
                 comment_start = i
                 break
 
@@ -285,7 +319,7 @@ def _strip_jsonc_comments(content: str) -> str:
         else:
             result_lines.append(line)
 
-    return '\n'.join(result_lines)
+    return "\n".join(result_lines)
 
 
 def load_settings(settings_path: Path | str | None = None) -> Settings:
@@ -319,13 +353,13 @@ def load_settings(settings_path: Path | str | None = None) -> Settings:
                 content = f.read()
 
             # Check if this is a JSONC file (has comments)
-            if settings_path.suffix == '.jsonc':
+            if settings_path.suffix == ".jsonc":
                 content = _strip_jsonc_comments(content)
 
             user_settings = json.loads(content)
 
             # Filter out internal keys (starting with _) for backwards compatibility
-            user_settings = {k: v for k, v in user_settings.items() if not k.startswith('_')}
+            user_settings = {k: v for k, v in user_settings.items() if not k.startswith("_")}
 
             settings.update(user_settings)
         except (OSError, json.JSONDecodeError) as e:
@@ -377,13 +411,15 @@ def merge_cli_overrides(
                 # Expand any range expressions in the pattern
                 expanded = _expand_reject_expression(pattern)
                 if expanded != [pattern]:
-                    logger.info("Expanded --reject \"%s\" → %d patterns:", pattern, len(expanded))
+                    logger.info('Expanded --reject "%s" → %d patterns:', pattern, len(expanded))
                     for i, p in enumerate(expanded, 1):
                         logger.info("  %4d. %s", i, p)
                 additional_patterns.extend(expanded)
 
         if additional_patterns:
             # Create a new list to avoid mutating the original settings
-            settings_dict["RejectPatterns"] = list(settings_dict.get("RejectPatterns", [])) + additional_patterns
+            settings_dict["RejectPatterns"] = (
+                list(settings_dict.get("RejectPatterns", [])) + additional_patterns
+            )
 
     return Settings.from_legacy_dict(settings_dict)

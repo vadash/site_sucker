@@ -8,12 +8,12 @@ from site_sucker import repair_offline
 def test_repair_offline_html_removes_load_php(tmp_path: Path):
     """Test removal of MediaWiki load.php resources."""
     html_file = tmp_path / "test.html"
-    original_html = '''<html>
+    original_html = """<html>
 <head>
     <link rel="stylesheet" href="https://example.com/load.php?modules=site">
     <script src="https://example.com/load.php?modules=jquery"></script>
 </head>
-</html>'''
+</html>"""
     html_file.write_text(original_html)
 
     result = repair_offline.repair_offline_html(tmp_path)
@@ -30,12 +30,12 @@ def test_repair_offline_html_removes_load_php(tmp_path: Path):
 def test_repair_offline_html_removes_preconnect(tmp_path: Path):
     """Test removal of preconnect and dns-prefetch hints."""
     html_file = tmp_path / "test.html"
-    original_html = '''<html>
+    original_html = """<html>
 <head>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="dns-prefetch" href="https://cdn.example.com">
 </head>
-</html>'''
+</html>"""
     html_file.write_text(original_html)
 
     result = repair_offline.repair_offline_html(tmp_path)
@@ -50,12 +50,12 @@ def test_repair_offline_html_removes_preconnect(tmp_path: Path):
 def test_repair_offline_html_removes_feeds(tmp_path: Path):
     """Test removal of RSS/Atom feed links."""
     html_file = tmp_path / "test.html"
-    original_html = '''<html>
+    original_html = """<html>
 <head>
     <link rel="alternate" type="application/atom+xml" href="/feed.atom">
     <link rel="alternate" type="application/rss+xml" href="/feed.rss">
 </head>
-</html>'''
+</html>"""
     html_file.write_text(original_html)
 
     result = repair_offline.repair_offline_html(tmp_path)
@@ -70,7 +70,7 @@ def test_repair_offline_html_removes_feeds(tmp_path: Path):
 def test_repair_offline_html_removes_tracking(tmp_path: Path):
     """Test removal of analytics and tracking scripts."""
     html_file = tmp_path / "test.html"
-    original_html = '''<html>
+    original_html = """<html>
 <head>
     <script>
         var _paq = window._paq = window._paq || [];
@@ -80,7 +80,7 @@ def test_repair_offline_html_removes_tracking(tmp_path: Path):
         <img src="https://matomo.example.com/piwik.php?idsite=1" />
     </noscript>
 </head>
-</html>'''
+</html>"""
     html_file.write_text(original_html)
 
     result = repair_offline.repair_offline_html(tmp_path)
@@ -96,7 +96,7 @@ def test_repair_offline_html_removes_tracking(tmp_path: Path):
 def test_repair_offline_html_phpbb_links(tmp_path: Path):
     """Test removal of phpBB-specific offline-useless links."""
     html_file = tmp_path / "test.html"
-    original_html = '''<html>
+    original_html = """<html>
 <body>
     <a href="posting.php?mode=reply">Reply</a>
     <a href="tradegold.php">Trade</a>
@@ -105,7 +105,7 @@ def test_repair_offline_html_phpbb_links(tmp_path: Path):
     <a href="ucp.php">User CP</a>
     <a href="mcp.php">Mod CP</a>
 </body>
-</html>'''
+</html>"""
     html_file.write_text(original_html)
 
     result = repair_offline.repair_offline_html(tmp_path)
@@ -129,9 +129,7 @@ def test_repair_offline_html_multiple_files(tmp_path: Path):
     (tmp_path / "page2.html").write_text(
         '<link rel="preconnect" href="https://fonts.googleapis.com">'
     )
-    (tmp_path / "page3.htm").write_text(
-        '<script>var _paq = window._paq || [];</script>'
-    )
+    (tmp_path / "page3.htm").write_text("<script>var _paq = window._paq || [];</script>")
 
     result = repair_offline.repair_offline_html(tmp_path)
 
@@ -141,12 +139,12 @@ def test_repair_offline_html_multiple_files(tmp_path: Path):
 def test_repair_offline_html_removes_fontawesome_loader(tmp_path: Path):
     """Test removal of FontAwesome CDN loader script."""
     html_file = tmp_path / "test.html"
-    original_html = '''<html>
+    original_html = """<html>
 <head>
     <script src='images/9a832b96e0.js'></script>
     <link rel="stylesheet" href="https://use.fontawesome.com/9a832b96e0.css">
 </head>
-</html>'''
+</html>"""
     html_file.write_text(original_html)
 
     result = repair_offline.repair_offline_html(tmp_path)
@@ -163,7 +161,7 @@ def test_repair_offline_html_removes_fontawesome_loader(tmp_path: Path):
 def test_repair_offline_html_removes_fontawesome_config(tmp_path: Path):
     """Test removal of window.FontAwesomeCdnConfig."""
     html_file = tmp_path / "test.html"
-    original_html = '''<html>
+    original_html = """<html>
 <head>
     <script>
     window.FontAwesomeCdnConfig = {
@@ -172,7 +170,7 @@ def test_repair_offline_html_removes_fontawesome_config(tmp_path: Path):
     };
     </script>
 </head>
-</html>'''
+</html>"""
     html_file.write_text(original_html)
 
     result = repair_offline.repair_offline_html(tmp_path)
@@ -186,7 +184,7 @@ def test_repair_offline_html_removes_fontawesome_config(tmp_path: Path):
 def test_repair_offline_html_removes_google_analytics(tmp_path: Path):
     """Test removal of Google Analytics bootstrap script."""
     html_file = tmp_path / "test.html"
-    original_html = '''<html>
+    original_html = """<html>
 <head>
     <script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -195,7 +193,7 @@ def test_repair_offline_html_removes_google_analytics(tmp_path: Path):
     <script>ga('create', 'UA-12345', 'auto');</script>
     <script>ga('send', 'pageview');</script>
 </head>
-</html>'''
+</html>"""
     html_file.write_text(original_html)
 
     result = repair_offline.repair_offline_html(tmp_path)
@@ -214,7 +212,7 @@ def test_repair_offline_html_removes_google_analytics(tmp_path: Path):
 def test_repair_offline_html_removes_mixed_tracking(tmp_path: Path):
     """Test removal of both Matomo and Google Analytics."""
     html_file = tmp_path / "test.html"
-    original_html = '''<html>
+    original_html = """<html>
 <head>
     <script>
         var _paq = window._paq || [];
@@ -224,7 +222,7 @@ def test_repair_offline_html_removes_mixed_tracking(tmp_path: Path):
     ('window,document,'script','//www.google-analytics.com/analytics.js','ga');</script>
     <script src='images/9a832b96e0.js'></script>
 </head>
-</html>'''
+</html>"""
     html_file.write_text(original_html)
 
     result = repair_offline.repair_offline_html(tmp_path)

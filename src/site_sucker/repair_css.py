@@ -41,7 +41,7 @@ def build_css_replacement_steps(
             import_path = match.group(1)
 
             # Skip external @import (http/https) - leave marker for later step
-            if import_path.startswith(('http://', 'https://')):
+            if import_path.startswith(("http://", "https://")):
                 return f'/* External @import "{import_path}" stripped for offline use */'
 
             # Resolve relative import path
@@ -51,7 +51,7 @@ def build_css_replacement_steps(
                 if not import_file.exists():
                     return f'/* @import "{import_path}" - FILE NOT FOUND */\n'
 
-                with open(import_file, encoding='utf-8', errors='ignore') as f:
+                with open(import_file, encoding="utf-8", errors="ignore") as f:
                     imported_content = f.read()
 
                 # Prevent infinite recursion with depth tracking
@@ -66,7 +66,7 @@ def build_css_replacement_steps(
                 inlined = inline_imports(imported_content)
                 import_stack.remove(import_path)
 
-                return f'/* INLINED: {import_path} */\n{inlined}'
+                return f"/* INLINED: {import_path} */\n{inlined}"
 
             except OSError as e:
                 return f'/* @import "{import_path}" - READ ERROR: {e} */\n'
@@ -77,7 +77,7 @@ def build_css_replacement_steps(
             import_path = match.group(1)
 
             # Skip external @import (http/https) - leave marker for later step
-            if import_path.startswith(('http://', 'https://')):
+            if import_path.startswith(("http://", "https://")):
                 return f'/* External @import "{import_path}" stripped for offline use */'
 
             # Resolve relative import path
@@ -89,7 +89,7 @@ def build_css_replacement_steps(
                         with open(import_file, encoding="utf-8", errors="ignore") as f:
                             imported_content = f.read()
 
-                        return f'/* Inlined from {import_path} */\n{imported_content}\n'
+                        return f"/* Inlined from {import_path} */\n{imported_content}\n"
                     except OSError as e:
                         return f'/* @import "{import_path}" - READ ERROR: {e} */\n'
                 else:
@@ -115,7 +115,7 @@ def build_css_replacement_steps(
             pattern=re.compile(
                 r'/\* External @import "https://fonts\.googleapis\.com/[^"]+" stripped for offline use \*/'
             ),
-            replacement='/* Google Fonts @import stripped for offline use */',
+            replacement="/* Google Fonts @import stripped for offline use */",
         )
     )
 
@@ -123,15 +123,13 @@ def build_css_replacement_steps(
     for url, filename in url_map.items():
         rel_link = "../" * depth + f"images/{filename}"
         escaped_url = re.escape(url)
-        pattern = re.compile(
-            f'url\\(\\s*(["\']?)?{escaped_url}(?:\\?[^\\s"\'#>\\)]+)?\\1?\\s*\\)'
-        )
+        pattern = re.compile(f"url\\(\\s*([\"']?)?{escaped_url}(?:\\?[^\\s\"'#>\\)]+)?\\1?\\s*\\)")
 
         css_steps.append(
             ReplacementStep(
                 name=f"Rewrite external CSS URL to local: {url[:50]}...",
                 pattern=pattern,
-                replacement=f'url(\\1?{rel_link}\\1?)',
+                replacement=f"url(\\1?{rel_link}\\1?)",
             )
         )
 
@@ -149,7 +147,7 @@ def build_css_replacement_steps(
         ReplacementStep(
             name="Convert absolute local paths to relative",
             pattern=re.compile(r'url\(\s*(["\']?)/([^"\'\)]*)\1\s*\)'),
-            replacement=f'url(\\1{prefix}\\2\\1)',
+            replacement=f"url(\\1{prefix}\\2\\1)",
         )
     )
 
@@ -181,9 +179,7 @@ def process_css_files(
         css_dir = css_file.parent
 
         # Build replacement steps for this specific CSS file
-        css_steps = build_css_replacement_steps(
-            css_dir, output_dir, url_map
-        )
+        css_steps = build_css_replacement_steps(css_dir, output_dir, url_map)
 
         # Run the replacement pipeline
         steps_applied = run_replacement_pipeline(
@@ -201,10 +197,10 @@ def process_css_files(
                 with open(css_file, encoding="utf-8", errors="ignore") as f:
                     updated_content = f.read()
 
-                if 'Google Fonts @import stripped' in updated_content:
+                if "Google Fonts @import stripped" in updated_content:
                     external_fonts_stripped += 1
 
-                if 'External URL stripped for offline use' in updated_content:
+                if "External URL stripped for offline use" in updated_content:
                     external_urls_stripped += 1
             except OSError:
                 pass

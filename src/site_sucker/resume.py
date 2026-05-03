@@ -104,7 +104,7 @@ def discover_css_imports(
     for match in import_pattern.finditer(content):
         import_path = match.group(1)
 
-        if import_path.startswith(('http://', 'https://')):
+        if import_path.startswith(("http://", "https://")):
             continue
 
         absolute_url = urljoin(base_url, import_path)
@@ -126,7 +126,13 @@ def discover_css_imports(
 class ResumeCrawler:
     """Manages the BFS crawl state and native HTTP fetching."""
 
-    def __init__(self, output_dir: Path, target_domain: str, settings: Settings, session: requests.Session | None = None):
+    def __init__(
+        self,
+        output_dir: Path,
+        target_domain: str,
+        settings: Settings,
+        session: requests.Session | None = None,
+    ):
         self.output_dir = output_dir
         self.target_domain = target_domain
         self.settings = settings
@@ -164,7 +170,9 @@ class ResumeCrawler:
         adapter = HTTPAdapter(max_retries=retry_strategy)
         session.mount("http://", adapter)
         session.mount("https://", adapter)
-        session.headers.update({"User-Agent": self.settings.user_agent, "Accept-Encoding": "identity"})
+        session.headers.update(
+            {"User-Agent": self.settings.user_agent, "Accept-Encoding": "identity"}
+        )
         return session
 
     def fetch_file(self, url: str, save_path: Path) -> bool:
@@ -197,7 +205,11 @@ class ResumeCrawler:
         self.queue.append((seed_url, 0))
         iteration = 0
 
-        logger.info("[*] BFS crawl: %s (depth=%s)", self.target_domain, self.max_depth if self.max_depth > 0 else 'unlimited')
+        logger.info(
+            "[*] BFS crawl: %s (depth=%s)",
+            self.target_domain,
+            self.max_depth if self.max_depth > 0 else "unlimited",
+        )
 
         while self.queue:
             iteration += 1
@@ -220,7 +232,11 @@ class ResumeCrawler:
             if not file_existed:
                 parsed_url = urlparse(current_url)
                 short_path = parsed_url.path + (f"?{parsed_url.query}" if parsed_url.query else "")
-                print(f"\r  [{len(self.visited)} visited | {len(self.queue)} queued] GET {short_path}", end="", flush=True)
+                print(
+                    f"\r  [{len(self.visited)} visited | {len(self.queue)} queued] GET {short_path}",
+                    end="",
+                    flush=True,
+                )
 
                 success = self.fetch_file(current_url, actual_path)
 
@@ -237,7 +253,8 @@ class ResumeCrawler:
                 print(
                     f"\r  [{len(self.visited)} visited | {len(self.queue)} queued]"
                     f" cached: {self.stats['cached']}, downloaded: {self.stats['downloaded']}",
-                    end="", flush=True,
+                    end="",
+                    flush=True,
                 )
 
             # Parse the file for new links
@@ -245,10 +262,17 @@ class ResumeCrawler:
 
         print()  # newline after progress counter
 
-        failure_suffix = f" ({self.stats['failed']} failed)" if self.stats['failed'] > 0 else ""
-        logger.info("[*] BFS complete: %d visited, %d downloaded%s", len(self.visited), self.stats['downloaded'], failure_suffix)
+        failure_suffix = f" ({self.stats['failed']} failed)" if self.stats["failed"] > 0 else ""
+        logger.info(
+            "[*] BFS complete: %d visited, %d downloaded%s",
+            len(self.visited),
+            self.stats["downloaded"],
+            failure_suffix,
+        )
 
-    def process_discovered_links(self, current_url: str, local_path: Path, current_depth: int) -> None:
+    def process_discovered_links(
+        self, current_url: str, local_path: Path, current_depth: int
+    ) -> None:
         """Extract links from HTML or CSS and add to queue.
 
         Args:

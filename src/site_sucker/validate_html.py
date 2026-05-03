@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 # Control characters that should never appear in valid HTML content.
 # Excludes: tab (0x09), newline (0x0A), carriage return (0x0D).
 # Includes: DEL (0x7F) and C0 controls (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F).
-_CONTROL_CHAR_RE = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
+_CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
 def validate_html_string(content: str) -> dict[str, bool]:
@@ -58,11 +58,11 @@ def validate_html_string(content: str) -> dict[str, bool]:
 
     # Use regex to check for original presence of head/body tags
     # BeautifulSoup's lxml parser auto-adds missing tags, so we check the raw content first
-    has_head_tag = bool(re.search(r'<head[^>]*>', content, re.IGNORECASE))
-    has_body_tag = bool(re.search(r'<body[^>]*>', content, re.IGNORECASE))
+    has_head_tag = bool(re.search(r"<head[^>]*>", content, re.IGNORECASE))
+    has_body_tag = bool(re.search(r"<body[^>]*>", content, re.IGNORECASE))
 
     # Parse with BeautifulSoup - lxml handles broken HTML gracefully
-    soup = BeautifulSoup(content, 'lxml')
+    soup = BeautifulSoup(content, "lxml")
 
     # Check for head element in original content
     if not has_head_tag:
@@ -77,11 +77,11 @@ def validate_html_string(content: str) -> dict[str, bool]:
     # Check for empty body (no visible text content)
     # Only check if we had a body tag in the original content
     if has_body_tag:
-        body = soup.find('body')
+        body = soup.find("body")
         if body:
             # Get all text content from body, excluding script/style tags
             # BeautifulSoup's get_text() automatically handles this
-            text_content = body.get_text(separator=' ', strip=True)
+            text_content = body.get_text(separator=" ", strip=True)
 
             # Check if there's any meaningful text (more than 5 non-whitespace chars)
             # This catches truly empty bodies but allows short content like <h1>Content</h1>

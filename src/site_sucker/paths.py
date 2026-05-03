@@ -8,10 +8,32 @@ from urllib.parse import urlparse
 
 # Known file extensions that should not have .html appended
 KNOWN_EXTENSIONS = {
-    ".css", ".js", ".html", ".htm", ".json", ".xml",
-    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".bmp",
-    ".woff", ".woff2", ".ttf", ".eot", ".otf",
-    ".mp4", ".webm", ".avi", ".mkv", ".mov", ".mp3", ".pdf"
+    ".css",
+    ".js",
+    ".html",
+    ".htm",
+    ".json",
+    ".xml",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".svg",
+    ".ico",
+    ".bmp",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".eot",
+    ".otf",
+    ".mp4",
+    ".webm",
+    ".avi",
+    ".mkv",
+    ".mov",
+    ".mp3",
+    ".pdf",
 }
 
 

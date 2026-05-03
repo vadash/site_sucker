@@ -1,6 +1,5 @@
 """Tests for url_filter module (shared URL extraction)."""
 
-
 from bs4 import BeautifulSoup
 
 from site_sucker.url_filter import (
@@ -376,23 +375,28 @@ def test_should_reject_url_external_domain():
 
 def test_should_reject_url_patterns():
     """Test that reject patterns work."""
-    assert should_reject_url(
-        "https://example.com/index.php?action=edit",
-        "example.com",
-        reject_patterns=["action="]
-    ) is True
+    assert (
+        should_reject_url(
+            "https://example.com/index.php?action=edit", "example.com", reject_patterns=["action="]
+        )
+        is True
+    )
 
-    assert should_reject_url(
-        "https://example.com/Special:Contributions",
-        "example.com",
-        reject_patterns=["Special:"]
-    ) is True
+    assert (
+        should_reject_url(
+            "https://example.com/Special:Contributions", "example.com", reject_patterns=["Special:"]
+        )
+        is True
+    )
 
 
 def test_should_reject_url_domains():
     """Test that reject domains work."""
-    assert should_reject_url(
-        "https://analytics.example.com/track",
-        "example.com",
-        reject_domains=["analytics.example.com"]
-    ) is True
+    assert (
+        should_reject_url(
+            "https://analytics.example.com/track",
+            "example.com",
+            reject_domains=["analytics.example.com"],
+        )
+        is True
+    )

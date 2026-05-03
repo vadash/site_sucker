@@ -50,12 +50,12 @@ def get_external_media(
 
     # ── PART 1: Scan HTML files with BeautifulSoup ─────────────────────────────
     for _html_file, content in iter_html_files(output_dir):
-        soup = BeautifulSoup(content, 'lxml')
+        soup = BeautifulSoup(content, "lxml")
 
         # Scan all tags that can have media URLs
-        for tag in soup.find_all(['img', 'script', 'link', 'video', 'audio', 'source']):
+        for tag in soup.find_all(["img", "script", "link", "video", "audio", "source"]):
             # Check src and href attributes
-            for attr in ('src', 'href', 'data-src'):
+            for attr in ("src", "href", "data-src"):
                 url = tag.get(attr)
                 if not url:
                     continue
@@ -63,7 +63,7 @@ def get_external_media(
                 url_count += 1
 
                 # Skip non-HTTP URLs
-                if not url.startswith(('http://', 'https://')):
+                if not url.startswith(("http://", "https://")):
                     continue
 
                 # Skip URLs from the target domain
@@ -110,5 +110,10 @@ def get_external_media(
             ext_urls.add(normalized_url)
 
     url_count + css_url_count
-    logger.info("Scanned %d HTML URLs and %d CSS url() references, found %d unique external media URLs", url_count, css_url_count, len(ext_urls))
+    logger.info(
+        "Scanned %d HTML URLs and %d CSS url() references, found %d unique external media URLs",
+        url_count,
+        css_url_count,
+        len(ext_urls),
+    )
     return ext_urls

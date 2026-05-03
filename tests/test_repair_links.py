@@ -61,12 +61,12 @@ def test_repair_external_links_strip_crossorigin(tmp_path: Path):
     html_dir.mkdir()
     html_file = html_dir / "test.html"
 
-    original_html = '''<html>
+    original_html = """<html>
 <head>
     <link rel="stylesheet" href="https://cdn.example.com/style.css"
           crossorigin="anonymous" integrity="sha384-abc">
 </head>
-</html>'''
+</html>"""
     html_file.write_text(original_html)
 
     media_dir = tmp_path / "images"
@@ -78,8 +78,8 @@ def test_repair_external_links_strip_crossorigin(tmp_path: Path):
     repair_links.repair_external_links(tmp_path, media_dir, external_urls)
 
     updated_content = html_file.read_text()
-    assert 'crossorigin=' not in updated_content
-    assert 'integrity=' not in updated_content
+    assert "crossorigin=" not in updated_content
+    assert "integrity=" not in updated_content
 
 
 def test_repair_external_links_css_absolute_paths(tmp_path: Path, sample_css: str):
@@ -159,7 +159,7 @@ def test_repair_external_links_css_import_not_found(tmp_path: Path):
 
     updated_main = main_css.read_text()
     # Should leave a comment about missing file
-    assert "/* @import \"missing.css\" - FILE NOT FOUND */" in updated_main
+    assert '/* @import "missing.css" - FILE NOT FOUND */' in updated_main
 
 
 def test_repair_external_links_css_import_external_stripped(tmp_path: Path):
@@ -171,7 +171,7 @@ def test_repair_external_links_css_import_external_stripped(tmp_path: Path):
     main_css.write_text(
         '@import url("https://fonts.googleapis.com/css?family=Test");\n'
         '@import url("colors.css");\n'
-        'body { margin: 0; }'
+        "body { margin: 0; }"
     )
 
     # Create local import
@@ -195,7 +195,7 @@ def test_repair_external_links_css_strip_google_fonts(tmp_path: Path, caplog):
     main_css = styles_dir / "main.css"
     main_css.write_text(
         '@import url("https://fonts.googleapis.com/css?family=Source+Sans+Pro");\n'
-        'body { font-family: Arial; }'
+        "body { font-family: Arial; }"
     )
 
     repair_links.repair_external_links(tmp_path, tmp_path / "images", set())
@@ -217,7 +217,7 @@ def test_repair_external_links_css_strip_external_url(tmp_path: Path, caplog):
     main_css = styles_dir / "main.css"
     main_css.write_text(
         '.logo { background: url("https://www.median-xl.com/styles/img/logo.png"); }\n'
-        'body { margin: 0; }'
+        "body { margin: 0; }"
     )
 
     repair_links.repair_external_links(tmp_path, tmp_path / "images", set())
@@ -256,9 +256,7 @@ def test_repair_internal_links_relative_urls(tmp_path: Path):
     (wiki_dir / "page.html").write_text("<html><body>content</body></html>")
 
     html_file = wiki_dir / "index.html"
-    html_file.write_text(
-        '<html><body><a href="/wiki/page.html">Link</a></body></html>'
-    )
+    html_file.write_text('<html><body><a href="/wiki/page.html">Link</a></body></html>')
 
     result = repair_links.repair_internal_links(tmp_path, "example.com")
     assert result == 1
@@ -312,9 +310,7 @@ def test_repair_internal_links_rewrite_images(tmp_path: Path):
     (images_dir / "logo.png").write_text("fake png")
 
     html_file = tmp_path / "index.html"
-    html_file.write_text(
-        '<html><body><img src="/images/logo.png" alt="Logo"></body></html>'
-    )
+    html_file.write_text('<html><body><img src="/images/logo.png" alt="Logo"></body></html>')
 
     result = repair_links.repair_internal_links(tmp_path, "example.com")
     assert result == 1
@@ -331,9 +327,7 @@ def test_repair_internal_links_rewrite_scripts(tmp_path: Path):
     (js_dir / "app.js").write_text("console.log('test');")
 
     html_file = tmp_path / "index.html"
-    html_file.write_text(
-        '<html><body><script src="/js/app.js"></script></body></html>'
-    )
+    html_file.write_text('<html><body><script src="/js/app.js"></script></body></html>')
 
     result = repair_links.repair_internal_links(tmp_path, "example.com")
     assert result == 1
@@ -371,9 +365,7 @@ def test_repair_internal_links_rewrite_images_from_subdirectory(tmp_path: Path):
     doc_dir = tmp_path / "doc"
     doc_dir.mkdir()
     html_file = doc_dir / "page.html"
-    html_file.write_text(
-        '<html><body><img src="/images/logo.png" alt="Logo"></body></html>'
-    )
+    html_file.write_text('<html><body><img src="/images/logo.png" alt="Logo"></body></html>')
 
     result = repair_links.repair_internal_links(tmp_path, "example.com")
     assert result == 1

@@ -124,7 +124,6 @@ def test_get_actual_save_path_case_insensitive():
     assert get_actual_save_path(Path("/downloads/script.JS")) == Path("/downloads/script.JS")
 
 
-
 def test_discover_links_basic(tmp_path, sample_html):
     """Test basic link discovery from HTML."""
     html_file = tmp_path / "test.html"

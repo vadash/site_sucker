@@ -9,20 +9,20 @@ from site_sucker.replacement_pipeline import ReplacementStep, run_replacement_pi
 def test_valid_replacement_applied(tmp_path: Path):
     """Test that a valid replacement is applied and content changes."""
     test_file = tmp_path / "test.html"
-    original_content = '''<html>
+    original_content = """<html>
 <head></head>
 <body>
     <p>Test content</p>
     <script src="https://example.com/tracking.js"></script>
 </body>
-</html>'''
+</html>"""
     test_file.write_text(original_content)
 
     steps = [
         ReplacementStep(
             name="Remove tracking script",
             pattern=re.compile(r'<script src="https://example\.com/tracking\.js"></script>'),
-            replacement='',
+            replacement="",
         ),
     ]
 
@@ -31,29 +31,29 @@ def test_valid_replacement_applied(tmp_path: Path):
     assert result == 1  # One step applied
 
     updated_content = test_file.read_text()
-    assert 'tracking.js' not in updated_content
-    assert '<body>' in updated_content
-    assert '</body>' in updated_content
+    assert "tracking.js" not in updated_content
+    assert "<body>" in updated_content
+    assert "</body>" in updated_content
 
 
 def test_destructive_replacement_reverted(tmp_path: Path):
     """Test that a destructive replacement (removing </body>) is reverted."""
     test_file = tmp_path / "test.html"
-    original_content = '''<html>
+    original_content = """<html>
 <head></head>
 <body>
     <p>Test content</p>
     <script>var x = 1;</script>
 </body>
-</html>'''
+</html>"""
     test_file.write_text(original_content)
 
     # This pattern directly removes the closing </body> tag
     steps = [
         ReplacementStep(
             name="Remove </body> tag directly",
-            pattern=re.compile(r'</body>'),
-            replacement='',  # This will break the HTML
+            pattern=re.compile(r"</body>"),
+            replacement="",  # This will break the HTML
         ),
     ]
 
@@ -64,27 +64,27 @@ def test_destructive_replacement_reverted(tmp_path: Path):
     # Content should be unchanged
     updated_content = test_file.read_text()
     assert updated_content == original_content
-    assert '</body>' in updated_content
+    assert "</body>" in updated_content
 
 
 def test_replacement_with_validation_logging(tmp_path: Path):
     """Test that failed replacements are logged."""
     test_file = tmp_path / "test.html"
-    original_content = '''<html>
+    original_content = """<html>
 <head></head>
 <body>
     <p>Test</p>
     <script>var x = 1;</script>
 </body>
-</html>'''
+</html>"""
     test_file.write_text(original_content)
 
     # This pattern will break the HTML structure by removing </body>
     steps = [
         ReplacementStep(
             name="Remove </body> tag",
-            pattern=re.compile(r'</body>'),
-            replacement='',  # Will break HTML
+            pattern=re.compile(r"</body>"),
+            replacement="",  # Will break HTML
         ),
     ]
 
@@ -118,8 +118,8 @@ def test_css_validation_non_empty(tmp_path: Path):
     steps = [
         ReplacementStep(
             name="Remove all CSS",
-            pattern=re.compile(r'.*'),
-            replacement='',
+            pattern=re.compile(r".*"),
+            replacement="",
         ),
     ]
 
@@ -141,7 +141,7 @@ def test_css_validation_non_empty(tmp_path: Path):
 def test_multiple_valid_replacements(tmp_path: Path):
     """Test that multiple valid replacements are all applied."""
     test_file = tmp_path / "test.html"
-    original_content = '''<html>
+    original_content = """<html>
 <head>
     <link rel="stylesheet" href="https://cdn.example.com/style.css">
 </head>
@@ -149,19 +149,21 @@ def test_multiple_valid_replacements(tmp_path: Path):
     <script src="https://example.com/analytics.js"></script>
     <p>Content</p>
 </body>
-</html>'''
+</html>"""
     test_file.write_text(original_content)
 
     steps = [
         ReplacementStep(
             name="Remove stylesheet",
             pattern=re.compile(r'<link[^>]*href="https://cdn\.example\.com/[^"]*"[^>]*/?>'),
-            replacement='',
+            replacement="",
         ),
         ReplacementStep(
             name="Remove analytics script",
-            pattern=re.compile(r'<script[^>]*src="https://example\.com/analytics\.js"[^>]*></script>'),
-            replacement='',
+            pattern=re.compile(
+                r'<script[^>]*src="https://example\.com/analytics\.js"[^>]*></script>'
+            ),
+            replacement="",
         ),
     ]
 
@@ -170,26 +172,26 @@ def test_multiple_valid_replacements(tmp_path: Path):
     assert result == 2  # Both steps applied
 
     updated_content = test_file.read_text()
-    assert 'stylesheet' not in updated_content
-    assert 'analytics.js' not in updated_content
-    assert '<body>' in updated_content
-    assert '</body>' in updated_content
+    assert "stylesheet" not in updated_content
+    assert "analytics.js" not in updated_content
+    assert "<body>" in updated_content
+    assert "</body>" in updated_content
 
 
 def test_no_change_no_validation(tmp_path: Path):
     """Test that if no change occurs, validation is not run."""
     test_file = tmp_path / "test.html"
-    original_content = '''<html>
+    original_content = """<html>
 <head></head>
 <body><p>Test</p></body>
-</html>'''
+</html>"""
     test_file.write_text(original_content)
 
     steps = [
         ReplacementStep(
             name="Remove non-existent element",
             pattern=re.compile(r'<div class="missing">'),
-            replacement='',
+            replacement="",
         ),
     ]
 
@@ -205,14 +207,14 @@ def test_no_change_no_validation(tmp_path: Path):
 def test_callable_replacement(tmp_path: Path):
     """Test that callable replacements work correctly."""
     test_file = tmp_path / "test.html"
-    original_content = '''<html>
+    original_content = """<html>
 <head></head>
 <body><p>Test</p></body>
-</html>'''
+</html>"""
     test_file.write_text(original_content)
 
     def add_meta_tag(content: str) -> str:
-        return content.replace('<head>', '<head>\n    <meta name="test" content="value">')
+        return content.replace("<head>", '<head>\n    <meta name="test" content="value">')
 
     steps = [
         ReplacementStep(
@@ -227,7 +229,7 @@ def test_callable_replacement(tmp_path: Path):
 
     updated_content = test_file.read_text()
     assert '<meta name="test"' in updated_content
-    assert '</head>' in updated_content  # Still valid
+    assert "</head>" in updated_content  # Still valid
 
 
 def test_css_absolute_path_conversion(tmp_path: Path):
@@ -241,7 +243,7 @@ def test_css_absolute_path_conversion(tmp_path: Path):
         ReplacementStep(
             name="Convert absolute paths to relative",
             pattern=re.compile(r'url\(\s*(["\']?)/([^"\'\)]*)\1\s*\)'),
-            replacement=r'url(\1../\2\1)',
+            replacement=r"url(\1../\2\1)",
         ),
     ]
 
@@ -259,10 +261,10 @@ def test_log_counter_padding(tmp_path: Path):
     test_files = []
     log_dir = tmp_path / "logs"
 
-    content = '''<html>
+    content = """<html>
 <head></head>
 <body><p>Test content here</p></body>
-</html>'''
+</html>"""
 
     # Run multiple replacements that fail on DIFFERENT files
     for i in range(5):
@@ -273,8 +275,8 @@ def test_log_counter_padding(tmp_path: Path):
         steps = [
             ReplacementStep(
                 name=f"Bad replacement {i}",
-                pattern=re.compile(r'</body>'),
-                replacement='',  # Breaks HTML
+                pattern=re.compile(r"</body>"),
+                replacement="",  # Breaks HTML
             ),
         ]
 
@@ -292,20 +294,20 @@ def test_log_counter_padding(tmp_path: Path):
 def test_regex_with_flags(tmp_path: Path):
     """Test that regex flags are properly handled."""
     test_file = tmp_path / "test.html"
-    original_content = '''<html>
+    original_content = """<html>
 <head></head>
 <body>
     <p>Some content</p>
     <SCRIPT src="https://example.com/script.js"></SCRIPT>
 </body>
-</html>'''
+</html>"""
     test_file.write_text(original_content)
 
     steps = [
         ReplacementStep(
             name="Remove script (case insensitive)",
-            pattern=re.compile(r'<script[^>]*>.*?</script>', re.IGNORECASE | re.DOTALL),
-            replacement='',
+            pattern=re.compile(r"<script[^>]*>.*?</script>", re.IGNORECASE | re.DOTALL),
+            replacement="",
         ),
     ]
 
@@ -317,29 +319,31 @@ def test_regex_with_flags(tmp_path: Path):
     assert result == 1
 
     updated_content = test_file.read_text()
-    assert 'SCRIPT' not in updated_content.upper()
-    assert '</body>' in updated_content
+    assert "SCRIPT" not in updated_content.upper()
+    assert "</body>" in updated_content
 
 
 def test_preserve_newline_style(tmp_path: Path):
     """Test that file is written with proper newline handling."""
     test_file = tmp_path / "test.html"
-    original_content = "<html>\n<head></head>\n<body><p>Test content here</p> <p>More content</p></body>\n</html>"
+    original_content = (
+        "<html>\n<head></head>\n<body><p>Test content here</p> <p>More content</p></body>\n</html>"
+    )
     test_file.write_text(original_content)
 
     steps = [
         ReplacementStep(
             name="Remove first paragraph",
-            pattern=re.compile(r'<p>Test content here</p>'),
-            replacement='',
+            pattern=re.compile(r"<p>Test content here</p>"),
+            replacement="",
         ),
     ]
 
     run_replacement_pipeline(test_file, steps, None)
 
     updated_content = test_file.read_text()
-    assert '<p>More content</p>' in updated_content
-    assert 'Test content here' not in updated_content
+    assert "<p>More content</p>" in updated_content
+    assert "Test content here" not in updated_content
     # Should preserve structure
-    assert '<html>' in updated_content
-    assert '</html>' in updated_content
+    assert "<html>" in updated_content
+    assert "</html>" in updated_content

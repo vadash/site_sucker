@@ -102,7 +102,7 @@ def rewrite_external_html_links(
         True if file was modified, False otherwise.
     """
     # Parse with BeautifulSoup
-    soup = BeautifulSoup(content, 'lxml')
+    soup = BeautifulSoup(content, "lxml")
 
     # Calculate relative path depth from this file to output root
     html_dir = html_file.parent
@@ -116,8 +116,8 @@ def rewrite_external_html_links(
     modified = False
 
     # Rewrite href and src attributes for mapped URLs
-    for tag in soup.find_all(['link', 'script', 'img']):
-        for attr in ('href', 'src'):
+    for tag in soup.find_all(["link", "script", "img"]):
+        for attr in ("href", "src"):
             url = tag.get(attr)
             if not url:
                 continue
@@ -125,7 +125,7 @@ def rewrite_external_html_links(
             # Check if this URL is in our map
             for original_url, filename in url_map.items():
                 # Strip query string for comparison
-                url_base = url.split('?')[0]
+                url_base = url.split("?")[0]
                 if url_base == original_url or url == original_url:
                     # Build relative path to images directory
                     rel_link = "../" * depth + f"images/{filename}"
@@ -134,12 +134,12 @@ def rewrite_external_html_links(
                     break
 
     # Strip CORS-blocking attributes (integrity, crossorigin)
-    for tag in soup.find_all(['link', 'script', 'img']):
-        if tag.get('integrity'):
-            del tag['integrity']
+    for tag in soup.find_all(["link", "script", "img"]):
+        if tag.get("integrity"):
+            del tag["integrity"]
             modified = True
-        if tag.get('crossorigin'):
-            del tag['crossorigin']
+        if tag.get("crossorigin"):
+            del tag["crossorigin"]
             modified = True
 
     if modified:
@@ -171,7 +171,7 @@ def rewrite_internal_html_links(
 
     for html_file, content in iter_html_files(output_dir):
         # Parse with BeautifulSoup
-        soup = BeautifulSoup(content, 'lxml')
+        soup = BeautifulSoup(content, "lxml")
 
         # Calculate relative path depth from this file to output root
         html_dir = html_file.parent
@@ -232,8 +232,8 @@ def rewrite_internal_html_links(
         # This fixes images like <img src="/images/art/intro_amazon.jpg">
         if _rewrite_tag_urls(
             soup,
-            tags=['img', 'script', 'link', 'video', 'audio', 'source'],
-            attrs=['src', 'href'],
+            tags=["img", "script", "link", "video", "audio", "source"],
+            attrs=["src", "href"],
             base_url=base_url,
             target_domain=target_domain,
             output_dir=output_dir,

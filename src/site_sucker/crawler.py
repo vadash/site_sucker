@@ -26,6 +26,7 @@ class CrawlResult:
         failed_urls: List of URLs that failed to download.
         needs_internal_link_repair: True if BFS mode was used (requires internal link rewriting).
     """
+
     failed_urls: list[str]
     needs_internal_link_repair: bool
 

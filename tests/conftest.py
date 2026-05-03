@@ -56,7 +56,7 @@ def sample_html() -> str:
     Returns:
         HTML string.
     """
-    return '''<!DOCTYPE html>
+    return """<!DOCTYPE html>
 <html>
 <head>
     <title>Test Page</title>
@@ -72,7 +72,7 @@ def sample_html() -> str:
     <a href="https://external.com/page.html">External Link</a>
     <script src="https://cdn.example.com/load.php?modules=jquery"></script>
 </body>
-</html>'''
+</html>"""
 
 
 @pytest.fixture
@@ -82,7 +82,7 @@ def sample_css() -> str:
     Returns:
         CSS string.
     """
-    return '''/* Test CSS */
+    return """/* Test CSS */
 body {
     background-image: url('/images/bg.png');
     font-family: url('https://fonts.example.com/font.woff2');
@@ -91,4 +91,4 @@ body {
 .banner {
     background: url('https://cdn.example.com/banner.jpg');
 }
-'''
+"""

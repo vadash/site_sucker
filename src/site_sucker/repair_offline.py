@@ -23,6 +23,7 @@ class RemovalRule:
         check_content: Optional regex to match against tag text content.
         check_nested: Optional nested tag spec (tag, attrs) to check before removing.
     """
+
     tag: str
     attrs: dict[str, Any] | None = None
     check_content: re.Pattern[str] | None = None
@@ -32,39 +33,37 @@ class RemovalRule:
 # Data-driven removal rules for online-only resources
 _REMOVAL_RULES = [
     # MediaWiki load.php resources
-    RemovalRule(tag='link', attrs={'rel': 'stylesheet', 'href': re.compile(r'load\.php')}),
-    RemovalRule(tag='script', attrs={'src': re.compile(r'load\.php')}),
-
+    RemovalRule(tag="link", attrs={"rel": "stylesheet", "href": re.compile(r"load\.php")}),
+    RemovalRule(tag="script", attrs={"src": re.compile(r"load\.php")}),
     # Network hints
-    RemovalRule(tag='link', attrs={'rel': 'preconnect'}),
-    RemovalRule(tag='link', attrs={'rel': 'dns-prefetch'}),
-
+    RemovalRule(tag="link", attrs={"rel": "preconnect"}),
+    RemovalRule(tag="link", attrs={"rel": "dns-prefetch"}),
     # Metadata links
-    RemovalRule(tag='link', attrs={'rel': 'EditURI'}),
-    RemovalRule(tag='link', attrs={'type': re.compile(r'application/(atom|rss)\+xml')}),
-
+    RemovalRule(tag="link", attrs={"rel": "EditURI"}),
+    RemovalRule(tag="link", attrs={"type": re.compile(r"application/(atom|rss)\+xml")}),
     # Analytics and tracking
-    RemovalRule(tag='script', check_content=re.compile(r'_paq')),
-    RemovalRule(tag='script', attrs={'src': re.compile(r'google-analytics\.com', re.IGNORECASE)}),
-    RemovalRule(tag='script', check_content=re.compile(r'google-analytics\.com', re.IGNORECASE)),
-
+    RemovalRule(tag="script", check_content=re.compile(r"_paq")),
+    RemovalRule(tag="script", attrs={"src": re.compile(r"google-analytics\.com", re.IGNORECASE)}),
+    RemovalRule(tag="script", check_content=re.compile(r"google-analytics\.com", re.IGNORECASE)),
     # Noscript tracking pixels
     RemovalRule(
-        tag='noscript',
-        check_nested=('img', {'src': re.compile(r'(matomo|analytics|doubleclick|google-analytics)', re.IGNORECASE)})
+        tag="noscript",
+        check_nested=(
+            "img",
+            {"src": re.compile(r"(matomo|analytics|doubleclick|google-analytics)", re.IGNORECASE)},
+        ),
     ),
-
     # FontAwesome CDN
-    RemovalRule(tag='script', attrs={'src': re.compile(r'9a832b96e0\.js')}),
-    RemovalRule(tag='link', attrs={'href': re.compile(r'use\.fontawesome\.com', re.IGNORECASE)}),
-    RemovalRule(tag='script', check_content=re.compile(r'FontAwesomeCdnConfig')),
-
+    RemovalRule(tag="script", attrs={"src": re.compile(r"9a832b96e0\.js")}),
+    RemovalRule(tag="link", attrs={"href": re.compile(r"use\.fontawesome\.com", re.IGNORECASE)}),
+    RemovalRule(tag="script", check_content=re.compile(r"FontAwesomeCdnConfig")),
     # Google Analytics inline calls
-    RemovalRule(tag='script', check_content=re.compile(r"""ga\(['\"]create['""]""")),
-    RemovalRule(tag='script', check_content=re.compile(r"""ga\(['\"]send['""]""")),
-
+    RemovalRule(tag="script", check_content=re.compile(r"""ga\(['\"]create['""]""")),
+    RemovalRule(tag="script", check_content=re.compile(r"""ga\(['\"]send['""]""")),
     # phpBB navigation links
-    RemovalRule(tag='a', attrs={'href': re.compile(r'(posting|tradegold|memberlist|search|ucp|mcp)\.php')}),
+    RemovalRule(
+        tag="a", attrs={"href": re.compile(r"(posting|tradegold|memberlist|search|ucp|mcp)\.php")}
+    ),
 ]
 
 
@@ -85,7 +84,7 @@ def _remove_dom_nodes(soup: BeautifulSoup) -> int:
 
         for tag in tags:
             # Check content regex if specified
-            if rule.check_content and not rule.check_content.search(tag.string or ''):
+            if rule.check_content and not rule.check_content.search(tag.string or ""):
                 continue
 
             # Check nested tag condition if specified
@@ -113,16 +112,25 @@ def _clean_inline_javascript(content: str) -> str:
         Cleaned HTML string.
     """
     # Remove Google Analytics inline calls (more flexible pattern)
-    content = re.sub(r"""ga\(['\"]create['\"],\s*[^)]+\);?""", '', content)
-    content = re.sub(r"""ga\(['\"]send['\"],\s*[^)]+\);?""", '', content)  # This should match both 'pageview' and "pageview"
+    content = re.sub(r"""ga\(['\"]create['\"],\s*[^)]+\);?""", "", content)
+    content = re.sub(
+        r"""ga\(['\"]send['\"],\s*[^)]+\);?""", "", content
+    )  # This should match both 'pageview' and "pageview"
 
     # Remove analytics push calls
-    content = re.sub(r"""\.push\(\s*\[?\s*['"]trackPageView['"].*?\);?""", '', content)
-    content = re.sub(r"""\.push\(\s*\[?\s*['"]enableLinkTracking['"].*?\);?""", '', content)
+    content = re.sub(r"""\.push\(\s*\[?\s*['"]trackPageView['"].*?\);?""", "", content)
+    content = re.sub(r"""\.push\(\s*\[?\s*['"]enableLinkTracking['"].*?\);?""", "", content)
 
     # Remove FontAwesome CDN config (simple and complex patterns)
-    content = re.sub(r'''window\.FontAwesomeCdnConfig\s*=\s*\{[^}]+\}\s*;''', '', content, flags=re.DOTALL)
-    content = re.sub(r'''window\.FontAwesomeCdnConfig\s*=\s*\{[^}]+\}\s*;.*?function\s*\([^)]*\)[^{]*\{[^}]*\}\s*\([^)]*\)\s*;''', '', content, flags=re.DOTALL)
+    content = re.sub(
+        r"""window\.FontAwesomeCdnConfig\s*=\s*\{[^}]+\}\s*;""", "", content, flags=re.DOTALL
+    )
+    content = re.sub(
+        r"""window\.FontAwesomeCdnConfig\s*=\s*\{[^}]+\}\s*;.*?function\s*\([^)]*\)[^{]*\{[^}]*\}\s*\([^)]*\)\s*;""",
+        "",
+        content,
+        flags=re.DOTALL,
+    )
 
     return content
 
@@ -162,14 +170,14 @@ def repair_offline_html(output_dir: Path | str) -> int:
 
     for processed, (html_file, content) in enumerate(html_items, start=1):
         # Parse with BeautifulSoup using lxml parser
-        soup = BeautifulSoup(content, 'lxml')
+        soup = BeautifulSoup(content, "lxml")
 
         # 1. Remove unwanted DOM nodes
         removed = _remove_dom_nodes(soup)
 
         # 2. Inject fallback CSS before </head> (DOM operation, before serializing)
         if soup.head:
-            style_tag = soup.new_tag('style')
+            style_tag = soup.new_tag("style")
             style_tag.string = (
                 "/* Minimal fallback CSS for offline browsing */\n"
                 "body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; }\n"
