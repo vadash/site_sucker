@@ -142,17 +142,22 @@ def interactive_prompt(default_url: str = "", default_output: str = "",
     return url, output_dir, depth, parallel
 
 
-def main() -> None:
-    """Main entry point."""
-    setup_logging()
-    args = parse_args()
+def resolve_config(args: argparse.Namespace, cfg: settings.Settings) -> tuple[str, Path, str, settings.Settings]:
+    """Resolve configuration from CLI arguments and settings.
 
-    # Load settings
-    cfg = settings.load_settings(args.settings_path)
+    This function extracts the logic between argument parsing and pipeline invocation,
+    making it testable without requiring full integration tests.
 
-    # Merge CLI overrides
-    cfg = settings.merge_cli_overrides(cfg, args.parallel, args.depth, args.extra_reject)
+    Args:
+        args: Parsed command-line arguments.
+        cfg: Loaded settings configuration.
 
+    Returns:
+        Tuple of (url, output_path, target_domain, updated_settings).
+
+    Raises:
+        SystemExit: If URL is invalid or domain cannot be extracted.
+    """
     # Parse URL and determine target domain
     url = args.url
     target_domain = ""
@@ -205,6 +210,23 @@ def main() -> None:
     # Create output directory (resolve to absolute path to prevent file bleed)
     output_path = Path(output_dir).expanduser().resolve()
     output_path.mkdir(parents=True, exist_ok=True)
+
+    return url, output_path, target_domain, cfg
+
+
+def main() -> None:
+    """Main entry point."""
+    setup_logging()
+    args = parse_args()
+
+    # Load settings
+    cfg = settings.load_settings(args.settings_path)
+
+    # Merge CLI overrides
+    cfg = settings.merge_cli_overrides(cfg, args.parallel, args.depth, args.extra_reject)
+
+    # Resolve configuration
+    url, output_path, target_domain, cfg = resolve_config(args, cfg)
 
     start_time = datetime.now()
 
