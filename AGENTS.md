@@ -23,11 +23,18 @@ When resuming an interrupted download, SiteSucker can use a Python-based BFS cra
 
 ### Core Pipeline
 
-- **`mirror.py`**: Orchestrates the entire 4-pass pipeline
+- **`mirror.py`**: Orchestrates the entire 4-pass pipeline (simplified)
   - Entry point: `invoke_site_mirror()`
   - Returns: List of failed URLs
   - Creates `output_dir/logs/` for replacement error logging
   - Uses `CrawlerBase` abstraction for mode-agnostic crawling
+  - **Note**: Pass 2 (external media download) extracted to `download.py`
+
+- **`download.py`**: External media downloader (extracted from mirror.py)
+  - `download_external_media()`: Downloads external URLs in parallel batches
+  - Uses ThreadPoolExecutor for concurrent wget subprocess calls
+  - Returns list of failed URLs for retry/failure logging
+  - Fully testable with mocked subprocess calls
 
 - **`crawler.py`**: Unified crawler abstraction
   - `CrawlerBase`: Abstract base class for crawler implementations
@@ -39,6 +46,7 @@ When resuming an interrupted download, SiteSucker can use a Python-based BFS cra
 - **`wget.py`**: Wget binary wrapper
   - `get_wget_path()`: Resolves `bin/wget.exe`
   - `build_wget_args()`: Constructs argument arrays from settings
+  - `get_clean_env()`: Returns environment with proxy variables stripped
 
 - **`media.py`**: External media scanner (BeautifulSoup for HTML, regex for CSS)
   - `get_external_media()`: Parses HTML/CSS for external media URLs
@@ -49,26 +57,28 @@ When resuming an interrupted download, SiteSucker can use a Python-based BFS cra
 
 ### Post-Processing & Replacement Pipeline
 
+- **`repair_html.py`**: HTML link rewriter (extracted from repair_links.py)
+  - `repair_external_links()`: Rewrites external HTML URLs to local paths
+  - `repair_internal_links()`: Rewrites internal HTML-to-HTML links to local paths (resume mode)
+  - `_build_url_map()`: Builds URL → local filename mapping
+  - `_rewrite_tag_urls()`: Shared helper for resource tag URL rewriting
+  - Uses BeautifulSoup for safe DOM manipulation (URL rewriting + CORS attribute stripping)
+  - Uses `file_iter.py` utilities for file iteration
+
+- **`repair_links.py`**: CSS link rewriter (HTML processing moved to repair_html.py)
+  - `repair_external_links()`: Rewrites external CSS URLs to local paths
+  - `_build_css_replacement_steps()`: Constructs CSS replacement steps per file
+  - CSS files: Uses regex pipeline for @import inlining, absolute path conversion, and external URL stripping
+  - Each CSS replacement step validated automatically
+  - Uses `file_iter.py` utilities for file iteration
+
 - **`replacement_pipeline.py`**: Unified replacement engine with validation (CSS-only)
   - `ReplacementStep`: Dataclass for defining regex/callable replacements
   - `run_replacement_pipeline()`: Executes steps with automatic rollback on validation failure
   - Validates CSS content after each replacement (checks for non-empty content)
   - Logs failed replacements to `logs/NNNNN/` with file snapshot and pattern details
   - **Key feature**: Prevents regex bugs from corrupting CSS files
-  - **Note**: HTML processing now uses BeautifulSoup, not this pipeline
-
-- **`repair_links.py`**: URL rewriter (BeautifulSoup for HTML, pipeline for CSS)
-  - `repair_external_links()`: Rewrites external URLs to local paths
-    - `_build_url_map()`: Builds URL → local filename mapping
-    - `_build_css_replacement_steps()`: Constructs CSS replacement steps per file
-    - `_repair_html_links_from_content()`: BeautifulSoup-based HTML URL rewriting
-  - `repair_internal_links()`: Rewrites internal HTML-to-HTML links to local paths (for resume mode)
-    - Uses `extract_internal_urls()` to discover navigation links
-    - Uses `_rewrite_tag_urls()` for resource tag rewriting (shared helper)
-  - HTML files: Uses BeautifulSoup for safe DOM manipulation (URL rewriting + CORS attribute stripping)
-  - CSS files: Uses regex pipeline for @import inlining, absolute path conversion, and external URL stripping
-  - Each CSS replacement step validated automatically
-  - Uses `file_iter.py` utilities for file iteration
+  - **Note**: HTML processing uses BeautifulSoup, not this pipeline
 
 - **`repair_offline.py`**: Offline optimizer (BeautifulSoup-based)
   - `repair_offline_html()`: Removes online-only resources using BeautifulSoup DOM operations
@@ -83,8 +93,14 @@ When resuming an interrupted download, SiteSucker can use a Python-based BFS cra
 
 ### Configuration & Reporting
 
-- **`settings.py`**: Configuration management
+- **`config.py`**: Type-safe configuration dataclass
+  - `Settings`: Dataclass with typed fields for all configuration values
+  - Provides compile-time validation and IDE autocomplete
+  - Used throughout codebase instead of `dict[str, Any]`
+
+- **`settings.py`**: Configuration loading (legacy dict interface for backwards compatibility)
   - `load_settings()`: Loads and merges settings.jsonc (with fallback to settings.json)
+  - Returns `Settings` dataclass (not `dict[str, Any]`)
   - `_strip_jsonc_comments()`: Removes `//` and `/* */` comments from JSONC files
   - `merge_cli_overrides()`: Applies CLI parameter overrides
   - Supports range expression expansion: `{1..100}`, `{1..100..2}`, `{1..100%4,25,40}`
@@ -105,8 +121,9 @@ When resuming an interrupted download, SiteSucker can use a Python-based BFS cra
   - `iter_html_files()`: Yields (file_path, content) tuples for all HTML files
   - `iter_parsed_html()`: Yields (file_path, BeautifulSoup) tuples for parsed HTML
   - `iter_css_files()`: Yields (file_path, content) tuples for all CSS files
+  - `write_if_changed()`: Writes file only if content changed (avoids mtime updates)
   - Centralizes error handling (read errors, empty content skipping)
-  - Used by: `media.py`, `repair_links.py`, `repair_offline.py`, `validate_html.py`
+  - Used by: `media.py`, `repair_html.py`, `repair_links.py`, `repair_offline.py`, `validate_html.py`
 
 ### URL Filtering & Path Conversion
 
@@ -130,7 +147,8 @@ When resuming an interrupted download, SiteSucker can use a Python-based BFS cra
   - `discover_links()`: Extracts internal links using shared `extract_internal_urls()`
   - `discover_css_imports()`: Extracts CSS @import references for BFS crawl
   - `ResumeCrawler`: Manages BFS crawl state (visited set, queue, depth tracking)
-  - `fetch_file()`: Native HTTP fetching using requests.Session with retry logic
+  - `fetch_file()`: Native HTTP fetching with retry logic
+  - **Key feature**: Accepts injectable `session` parameter for testability
   - **Key feature**: Python manages entire crawl state; only hits server for missing pages
   - **Solves**: The Catch-22 of `-nc` + `--convert-links` incompatibility for resume
   - **Bypasses**: 429 bot protection by parsing existing files locally for links
@@ -138,9 +156,12 @@ When resuming an interrupted download, SiteSucker can use a Python-based BFS cra
 ### CLI
 
 - **`__main__.py`**: CLI entry point
+  - `main()`: Thin CLI wrapper that parses arguments and invokes pipeline
+  - `resolve_config()`: Extractable function for URL, output dir, settings resolution
   - Parses arguments (argparse)
   - Handles interactive prompts
   - Calls `mirror.invoke_site_mirror()`
+  - **Note**: `resolve_config()` can be unit tested independently
 
 ## Testing Strategy
 
@@ -218,7 +239,8 @@ When fixing bugs:
 - Raise `FileNotFoundError` for missing wget binary
 - Return empty lists/sets for "not found" scenarios
 - Use `try/except` for file operations
-- Print warnings for non-critical issues
+- **Logging**: Use `logging` module instead of `print()` for all progress/warning messages
+- Configure logging in `__main__.py` with console handler
 
 ### Path Handling
 
@@ -397,11 +419,20 @@ Potential areas for improvement:
 
 ### Recently Completed
 
+- ✅ **2026-05-03 Refactoring**: Comprehensive refactoring completed
+  - Settings dataclass (`config.py`) for type-safe configuration
+  - Extracted `download.py` for testable external media download
+  - Split `repair_links.py` into `repair_html.py` (HTML) and `repair_links.py` (CSS)
+  - Replaced `print()` with `logging` module throughout codebase
+  - Made `ResumeCrawler` testable via injectable HTTP session
+  - Consolidated helpers: `get_clean_env()` in `wget.py`, `write_if_changed()` in `file_iter.py`
+  - Extracted `resolve_config()` from `__main__.py` for unit testing
 - ✅ **Resume support**: Python BFS crawler with `--resume` flag
 - ✅ **Shared URL extraction**: `url_filter.py` for resume + repair modes
 - ✅ **Data-driven DOM removal**: `RemovalRule` dataclass in `repair_offline.py`
 - ✅ **Unified crawler abstraction**: `CrawlerBase` for wget/BFS mode switching
 - ✅ **File iteration utilities**: `file_iter.py` for consistent HTML/CSS scanning
+- ✅ **HTML processing safety**: BeautifulSoup-based operations, cannot corrupt HTML structure
 
 ## Contact & Support
 

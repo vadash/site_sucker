@@ -236,28 +236,34 @@ site_sucker/
 ├── src/
 │   └── site_sucker/
 │       ├── __init__.py
-│       ├── __main__.py       # CLI entry point
-│       ├── settings.py       # Configuration loading
-│       ├── wget.py           # Wget wrapper
-│       ├── mirror.py         # Pipeline orchestrator
+│       ├── __main__.py       # CLI entry point (with extractable resolve_config)
+│       ├── config.py         # Settings dataclass (type-safe configuration)
+│       ├── settings.py       # Configuration loading (legacy dict interface)
+│       ├── wget.py           # Wget wrapper (with get_clean_env helper)
+│       ├── mirror.py         # Pipeline orchestrator (simplified)
 │       ├── crawler.py        # Crawler abstraction (WgetCrawler, BFSCrawler)
+│       ├── download.py       # External media download (extracted from mirror.py)
 │       ├── media.py          # External media scanner
-│       ├── repair_links.py   # URL rewriter
-│       ├── repair_offline.py # Offline optimizer
+│       ├── repair_html.py    # HTML link rewriting (extracted from repair_links.py)
+│       ├── repair_links.py   # CSS link rewriting (HTML moved to repair_html.py)
+│       ├── repair_offline.py # Offline optimizer (with write_if_changed helper)
 │       ├── replacement_pipeline.py  # CSS replacement engine with validation
-│       ├── resume.py         # Python BFS crawler (resume mode)
+│       ├── resume.py         # Python BFS crawler (resume mode, injectable session)
 │       ├── url_filter.py     # Shared URL validation/extraction
 │       ├── paths.py          # URL-to-filepath conversion
-│       ├── file_iter.py      # File iteration utilities
+│       ├── file_iter.py      # File iteration utilities (with write_if_changed helper)
 │       ├── validate_html.py  # HTML integrity checker
 │       └── report.py         # Report generator
 ├── tests/
 │   ├── conftest.py           # Test fixtures
 │   ├── test_settings.py
+│   ├── test_config.py        # Settings dataclass tests
 │   ├── test_wget.py
 │   ├── test_mirror.py
+│   ├── test_download.py      # External media download tests
 │   ├── test_media.py
-│   ├── test_repair_links.py
+│   ├── test_repair_html.py   # HTML link rewriting tests
+│   ├── test_repair_links.py  # CSS link rewriting tests
 │   ├── test_repair_offline.py
 │   ├── test_replacement_pipeline.py
 │   ├── test_resume.py
@@ -269,6 +275,20 @@ site_sucker/
 ├── AGENTS.md                 # AI agent development guide
 └── README.md
 ```
+
+## Recent Refactoring (2026-05-03)
+
+The codebase underwent comprehensive refactoring to improve testability, reduce complexity, and enhance maintainability:
+
+1. **Settings Dataclass**: Replaced `dict[str, Any]` with type-safe `Settings` dataclass
+2. **Extracted download.py**: Separated external media download from mirror orchestration
+3. **Split repair_links.py**: Separated HTML rewriting (repair_html.py) from CSS processing
+4. **Logging Framework**: Replaced `print()` with `logging` module throughout
+5. **Injectable HTTP Client**: Made ResumeCrawler testable via session injection
+6. **Consolidated Helpers**: Added `get_clean_env()` and `write_if_changed()` utilities
+7. **Testable CLI**: Extracted `resolve_config()` from __main__.py for unit testing
+
+All changes are backwards-compatible with existing functionality.
 
 ## Development
 
