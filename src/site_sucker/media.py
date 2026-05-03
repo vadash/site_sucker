@@ -14,6 +14,99 @@ from site_sucker.settings import Settings
 logger = logging.getLogger(__name__)
 
 
+def _scan_html_media(
+    html_items: list[tuple[Path, str]],
+    target_domain: str,
+    media_regex: re.Pattern[str],
+) -> tuple[set[str], int]:
+    """Scan HTML files for external media URLs using BeautifulSoup.
+
+    Args:
+        html_items: List of (path, content) tuples from iter_html_files.
+        target_domain: The primary domain being mirrored (excluded from results).
+        media_regex: Compiled regex matching media file extensions.
+
+    Returns:
+        Tuple of (unique external URLs, total HTML URLs scanned).
+    """
+    ext_urls: set[str] = set()
+    url_count = 0
+    progress = ProgressTracker(len(html_items))
+
+    for _html_file, content in html_items:
+        soup = BeautifulSoup(content, "lxml")
+
+        for tag in soup.find_all(["img", "script", "link", "video", "audio", "source"]):
+            for attr in ("src", "href", "data-src"):
+                url = tag.get(attr)
+                if not url:
+                    continue
+
+                url_count += 1
+
+                if not url.startswith(("http://", "https://")):
+                    continue
+
+                try:
+                    url_host = urlparse(url).hostname or ""
+                    if url_host == target_domain:
+                        continue
+                except Exception:
+                    continue
+
+                if not media_regex.search(url):
+                    continue
+
+                normalized_url = url.split("?")[0]
+                ext_urls.add(normalized_url)
+
+        progress.tick()
+
+    progress.finish()
+    return ext_urls, url_count
+
+
+def _scan_css_media(
+    output_dir: Path,
+    target_domain: str,
+    media_regex: re.Pattern[str],
+    css_url_pattern: re.Pattern[str],
+) -> tuple[set[str], int]:
+    """Scan CSS files for external media url() references.
+
+    Args:
+        output_dir: Path to the directory containing downloaded CSS files.
+        target_domain: The primary domain being mirrored (excluded from results).
+        media_regex: Compiled regex matching media file extensions.
+        css_url_pattern: Compiled regex matching CSS url() references.
+
+    Returns:
+        Tuple of (unique external URLs, total CSS url() references scanned).
+    """
+    ext_urls: set[str] = set()
+    css_url_count = 0
+
+    for _css_file, raw_css in iter_css_files(output_dir):
+        for match in css_url_pattern.finditer(raw_css):
+            css_url_count += 1
+            url = match.group(1)
+
+            try:
+                url_host = urlparse(url).hostname or ""
+                if url_host == target_domain:
+                    continue
+            except Exception:
+                continue
+
+            if not media_regex.search(url):
+                continue
+
+            normalized_url = url.split("?")[0]
+            ext_urls.add(normalized_url)
+
+    return ext_urls, css_url_count
+
+
 def get_external_media(
     output_dir: Path | str,
     target_domain: str,
@@ -37,85 +130,20 @@ def get_external_media(
     output_dir = Path(output_dir)
     logger.info("[2/2] Collecting external media from downloaded HTML and CSS...")
 
-    ext_urls = set()
-
-    # Regex to find url() references in CSS (including quotes and without)
     css_url_pattern = re.compile(r'url\(\s*["\']?(https?://[^"\'\\)]+)["\']?\s*\)')
 
-    # Build media extension regex
     extensions = settings.media_extensions
     escaped_exts = [re.escape(ext) for ext in extensions]
     media_regex = re.compile(rf"(?i)({'|'.join(escaped_exts)})(\?.*)?$")
 
-    url_count = 0
-
-    # ── PART 1: Scan HTML files with BeautifulSoup ─────────────────────────────
     html_items = list(iter_html_files(output_dir))
-    progress = ProgressTracker(len(html_items))
 
-    for _html_file, content in html_items:
-        soup = BeautifulSoup(content, "lxml")
+    html_urls, url_count = _scan_html_media(html_items, target_domain, media_regex)
+    css_urls, css_url_count = _scan_css_media(
+        output_dir, target_domain, media_regex, css_url_pattern
+    )
 
-        # Scan all tags that can have media URLs
-        for tag in soup.find_all(["img", "script", "link", "video", "audio", "source"]):
-            # Check src and href attributes
-            for attr in ("src", "href", "data-src"):
-                url = tag.get(attr)
-                if not url:
-                    continue
-
-                url_count += 1
-
-                # Skip non-HTTP URLs
-                if not url.startswith(("http://", "https://")):
-                    continue
-
-                # Skip URLs from the target domain
-                # Only skip if hostname exactly matches target domain
-                # e.g., example.com matches example.com
-                # but cdn.example.com does NOT match example.com (different domain)
-                try:
-                    url_host = urlparse(url).hostname or ""
-                    if url_host == target_domain:
-                        continue
-                except Exception:
-                    # If we can't parse the URL, skip it
-                    continue
-
-                # Skip non-media URLs
-                if not media_regex.search(url):
-                    continue
-
-                # Normalize URL: strip query string for deduplication
-                normalized_url = url.split("?")[0]
-                ext_urls.add(normalized_url)
-
-        progress.tick()
-
-    progress.finish()
-
-    # ── PART 2: Scan CSS files for url() references ─────────────────────────────
-    css_url_count = 0
-    for _css_file, raw_css in iter_css_files(output_dir):
-        for match in css_url_pattern.finditer(raw_css):
-            css_url_count += 1
-            url = match.group(1)
-
-            # Skip URLs from the target domain
-            try:
-                url_host = urlparse(url).hostname or ""
-                if url_host == target_domain:
-                    continue
-            except Exception:
-                continue
-
-            # Skip non-media URLs
-            if not media_regex.search(url):
-                continue
-
-            # Normalize URL: strip query string for deduplication
-            normalized_url = url.split("?")[0]
-            ext_urls.add(normalized_url)
+    ext_urls = html_urls | css_urls
 
     logger.info(
         "Scanned %d HTML URLs and %d CSS url() references, found %d unique external media URLs",

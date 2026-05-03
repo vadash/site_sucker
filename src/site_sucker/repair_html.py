@@ -85,6 +85,26 @@ def _rewrite_tag_urls(
     return modified
 
 
+def _strip_cors_attrs(soup: BeautifulSoup) -> bool:
+    """Strip CORS-blocking attributes (integrity, crossorigin) from tags.
+
+    Args:
+        soup: BeautifulSoup object.
+
+    Returns:
+        True if any attributes were removed, False otherwise.
+    """
+    modified = False
+    for tag in soup.find_all(["link", "script", "img"]):
+        if tag.get("integrity"):
+            del tag["integrity"]
+            modified = True
+        if tag.get("crossorigin"):
+            del tag["crossorigin"]
+            modified = True
+    return modified
+
+
 def rewrite_external_html_links(
     html_file: Path,
     output_dir: Path,
@@ -128,14 +148,9 @@ def rewrite_external_html_links(
                     modified = True
                     break
 
-    # Strip CORS-blocking attributes (integrity, crossorigin)
-    for tag in soup.find_all(["link", "script", "img"]):
-        if tag.get("integrity"):
-            del tag["integrity"]
-            modified = True
-        if tag.get("crossorigin"):
-            del tag["crossorigin"]
-            modified = True
+    # Strip CORS-blocking attributes
+    if _strip_cors_attrs(soup):
+        modified = True
 
     if modified:
         write_if_changed(html_file, content, str(soup))

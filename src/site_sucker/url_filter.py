@@ -9,6 +9,28 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 
 
+def _is_rejected_scheme(parsed: object) -> bool:
+    """Check if a parsed URL uses a non-HTTP/HTTPS scheme."""
+    return not hasattr(parsed, "scheme") or parsed.scheme not in ("http", "https")
+
+
+def _matches_reject_rules(
+    url: str,
+    parsed: object,
+    reject_patterns: Iterable[str] | None,
+    reject_domains: Iterable[str] | None,
+) -> bool:
+    """Check if a URL matches reject patterns or domains."""
+    if reject_patterns and any(pattern in url for pattern in reject_patterns):
+        return True
+    return bool(
+        reject_domains
+        and hasattr(parsed, "hostname")
+        and parsed.hostname
+        and any(parsed.hostname == domain for domain in reject_domains)
+    )
+
+
 def should_reject_url(
     url: str,
     target_domain: str,
@@ -26,7 +48,6 @@ def should_reject_url(
     Returns:
         True if the URL should be rejected, False otherwise.
     """
-    # Skip anchors, javascript, and mailto links
     if url.startswith(("#", "javascript:", "mailto:", "data:")):
         return True
 
@@ -35,24 +56,13 @@ def should_reject_url(
     except Exception:
         return True
 
-    # Only accept HTTP/HTTPS URLs
-    if parsed.scheme not in ("http", "https"):
+    if _is_rejected_scheme(parsed):
         return True
 
-    # Reject URLs from other domains
     if parsed.hostname != target_domain:
         return True
 
-    # Check reject patterns (substring match)
-    if reject_patterns and any(pattern in url for pattern in reject_patterns):
-        return True
-
-    # Check reject domains (exact hostname match)
-    return bool(
-        reject_domains
-        and parsed.hostname
-        and any(parsed.hostname == domain for domain in reject_domains)
-    )
+    return _matches_reject_rules(url, parsed, reject_patterns, reject_domains)
 
 
 # Tags and attributes to scan for navigation links (e.g., <a href>)

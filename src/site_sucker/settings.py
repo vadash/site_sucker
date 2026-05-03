@@ -214,6 +214,69 @@ def _is_valid_range_expression(values: list[str], original_expr: str) -> bool:
     return len(values) > 1
 
 
+def _generate_range(start: int, end: int, step: int, excludes: set[str]) -> list[str] | None:
+    """Generate range values from start to end with given step, excluding specified values.
+
+    Args:
+        start: Start value (inclusive).
+        end: End value (inclusive).
+        step: Step size (positive or negative).
+        excludes: Set of string values to skip.
+
+    Returns:
+        List of string values, or None if all were excluded.
+    """
+    values = []
+    current = start
+    ascending = step > 0
+
+    while (ascending and current <= end) or (not ascending and current >= end):
+        str_val = str(current)
+        if str_val not in excludes:
+            values.append(str_val)
+        current += step
+
+    return values if values else None
+
+
+def _parse_int_or_none(value: str) -> int | None:
+    """Parse a string to int, returning None for empty or invalid strings."""
+    value = value.strip()
+    if not value:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def _parse_range(expr: str, excludes: set[str]) -> list[str] | None:
+    """Parse START..END[..STEP] range and generate values excluding excluded ones.
+
+    Args:
+        expr: Range expression like "1..100" or "1..100..2".
+        excludes: Set of string values to exclude from the range.
+
+    Returns:
+        List of string values, or None if expr is not a valid range.
+    """
+    if ".." not in expr:
+        return None
+
+    parts = expr.split("..")
+    if len(parts) < 2 or len(parts) > 3:
+        return None
+
+    start = _parse_int_or_none(parts[0])
+    end = _parse_int_or_none(parts[1])
+    step = _parse_int_or_none(parts[2]) if len(parts) == 3 else None
+
+    if start is None or end is None:
+        return None
+
+    return _generate_range(start, end, step or 1, excludes)
+
+
 def _parse_range_expression(expr: str) -> list[str]:
     """Parse a range expression and return the list of values.
 
@@ -231,43 +294,39 @@ def _parse_range_expression(expr: str) -> list[str]:
         range_part = expr
         excludes = set()
 
-    # Parse range part: START..END or START..END..STEP
-    if ".." not in range_part:
-        # Not a valid range expression, return as-is
-        return [expr]
+    result = _parse_range(range_part, excludes)
+    return result if result is not None else [expr]
 
-    parts = range_part.split("..")
-    if len(parts) < 2 or len(parts) > 3:
-        # Invalid format, return as-is
-        return [expr]
 
-    try:
-        start = int(parts[0].strip()) if parts[0].strip() else None
-        end = int(parts[1].strip()) if parts[1].strip() else None
-        step = int(parts[2].strip()) if len(parts) == 3 and parts[2].strip() else 1
+def _strip_line_comment(line: str) -> str:
+    """Strip a // line comment from a single line, respecting string literals.
 
-        if start is None or end is None:
-            # Invalid range, return as-is
-            return [expr]
+    Args:
+        line: A single line of source text.
 
-        # Generate range values
-        values = []
-        current = start
-        while (step > 0 and current <= end) or (step < 0 and current >= end):
-            str_val = str(current)
-            if str_val not in excludes:
-                values.append(str_val)
-            current += step
+    Returns:
+        The line with any // comment removed.
+    """
+    in_string = False
+    escape = False
 
-        # If all values were excluded, return the original expression
-        if not values:
-            return [expr]
+    for i, char in enumerate(line):
+        if escape:
+            escape = False
+            continue
 
-        return values
+        if char == "\\":
+            escape = True
+            continue
 
-    except ValueError:
-        # Invalid number format, return as-is
-        return [expr]
+        if char == '"':
+            in_string = not in_string
+            continue
+
+        if not in_string and char == "/" and i + 1 < len(line) and line[i + 1] == "/":
+            return line[:i]
+
+    return line
 
 
 def _strip_jsonc_comments(content: str) -> str:
@@ -283,43 +342,12 @@ def _strip_jsonc_comments(content: str) -> str:
         JSON content with comments removed.
     """
     # Remove block comments /* ... */
-    # Use a negative lookahead to avoid matching inside strings
     pattern_block = r"/\*(?:(?!\*/)[\s\S])*\*/"
     content = re.sub(pattern_block, "", content)
 
     # Remove line comments // ...
-    # Must handle: URLs with "://", strings containing "//", etc.
-    # Strategy: remove // comments only when not inside a string
     lines = content.split("\n")
-    result_lines = []
-    for line in lines:
-        in_string = False
-        escape = False
-        comment_start = -1
-
-        for i, char in enumerate(line):
-            if escape:
-                escape = False
-                continue
-
-            if char == "\\":
-                escape = True
-                continue
-
-            if char == '"' and not escape:
-                in_string = not in_string
-                continue
-
-            if not in_string and char == "/" and i + 1 < len(line) and line[i + 1] == "/":
-                comment_start = i
-                break
-
-        if comment_start >= 0:
-            result_lines.append(line[:comment_start])
-        else:
-            result_lines.append(line)
-
-    return "\n".join(result_lines)
+    return "\n".join(_strip_line_comment(line) for line in lines)
 
 
 def load_settings(settings_path: Path | str | None = None) -> Settings:
@@ -372,6 +400,32 @@ def load_settings(settings_path: Path | str | None = None) -> Settings:
     return Settings.from_legacy_dict(settings)
 
 
+def _expand_reject_patterns(extra_reject: list[str]) -> list[str]:
+    """Expand and flatten semicolon-delimited reject patterns, including range expressions.
+
+    Args:
+        extra_reject: Raw reject patterns from CLI (may contain semicolons and range expressions).
+
+    Returns:
+        Flat list of expanded reject patterns.
+    """
+    additional_patterns = []
+    for reject_list in extra_reject:
+        for pattern in reject_list.split(";"):
+            pattern = pattern.strip()
+            if not pattern:
+                continue
+
+            expanded = _expand_reject_expression(pattern)
+            if expanded != [pattern]:
+                logger.info('Expanded --reject "%s" → %d patterns:', pattern, len(expanded))
+                for i, p in enumerate(expanded, 1):
+                    logger.info("  %4d. %s", i, p)
+            additional_patterns.extend(expanded)
+
+    return additional_patterns
+
+
 def merge_cli_overrides(
     settings: Settings,
     parallel: int | None = None,
@@ -399,22 +453,7 @@ def merge_cli_overrides(
         settings_dict["MaxDepth"] = depth
 
     if extra_reject:
-        # Split semicolon-delimited patterns and append to RejectPatterns
-        additional_patterns = []
-        for reject_list in extra_reject:
-            # First split by semicolon
-            for pattern in reject_list.split(";"):
-                pattern = pattern.strip()
-                if not pattern:
-                    continue
-
-                # Expand any range expressions in the pattern
-                expanded = _expand_reject_expression(pattern)
-                if expanded != [pattern]:
-                    logger.info('Expanded --reject "%s" → %d patterns:', pattern, len(expanded))
-                    for i, p in enumerate(expanded, 1):
-                        logger.info("  %4d. %s", i, p)
-                additional_patterns.extend(expanded)
+        additional_patterns = _expand_reject_patterns(extra_reject)
 
         if additional_patterns:
             # Create a new list to avoid mutating the original settings

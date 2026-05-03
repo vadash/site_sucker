@@ -17,7 +17,6 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from site_sucker.paths import get_actual_save_path, url_to_filepath
-from site_sucker.progress import ProgressTracker
 from site_sucker.settings import Settings
 from site_sucker.url_filter import extract_internal_urls, should_reject_url
 
@@ -197,6 +196,51 @@ class ResumeCrawler:
             logger.error("Fetch failed: %s", e)
             return False
 
+    def _process_url(self, current_url: str, depth: int) -> None:
+        """Process a single URL: download if missing, then discover new links.
+
+        Args:
+            current_url: URL to process.
+            depth: Current depth in the BFS tree.
+        """
+        # Determine where this file lives locally
+        base_path = url_to_filepath(current_url, self.output_dir)
+        actual_path = get_actual_save_path(base_path)
+
+        file_existed = actual_path.exists()
+
+        # Download if missing
+        if not file_existed:
+            parsed_url = urlparse(current_url)
+            short_path = parsed_url.path + (f"?{parsed_url.query}" if parsed_url.query else "")
+            print(
+                f"\r  [{len(self.visited)} visited | {len(self.queue)} queued] GET {short_path}",
+                end="",
+                flush=True,
+            )
+
+            success = self.fetch_file(current_url, actual_path)
+
+            if success:
+                self.stats["downloaded"] += 1
+            else:
+                self.stats["failed"] += 1
+                return
+
+            if self.wait_seconds > 0:
+                time.sleep(self.wait_seconds)
+        else:
+            self.stats["cached"] += 1
+            print(
+                f"\r  [{len(self.visited)} visited | {len(self.queue)} queued]"
+                f" cached: {self.stats['cached']}, downloaded: {self.stats['downloaded']}",
+                end="",
+                flush=True,
+            )
+
+        # Parse the file for new links
+        self.process_discovered_links(current_url, actual_path, depth)
+
     def run(self, seed_url: str) -> None:
         """Execute the BFS crawl loop.
 
@@ -204,7 +248,6 @@ class ResumeCrawler:
             seed_url: Starting URL for the crawl.
         """
         self.queue.append((seed_url, 0))
-        progress = ProgressTracker(0)  # total unknown at start
 
         logger.info(
             "[*] BFS crawl: %s (depth=%s)",
@@ -222,44 +265,7 @@ class ResumeCrawler:
             if self.max_depth > 0 and depth > self.max_depth:
                 continue
 
-            # Determine where this file lives locally
-            base_path = url_to_filepath(current_url, self.output_dir)
-            actual_path = get_actual_save_path(base_path)
-
-            file_existed = actual_path.exists()
-
-            # Download if missing
-            if not file_existed:
-                parsed_url = urlparse(current_url)
-                short_path = parsed_url.path + (f"?{parsed_url.query}" if parsed_url.query else "")
-                progress.update(0)  # clear line
-                print(
-                    f"\r  [{len(self.visited)} visited | {len(self.queue)} queued] GET {short_path}",
-                    end="",
-                    flush=True,
-                )
-
-                success = self.fetch_file(current_url, actual_path)
-
-                if success:
-                    self.stats["downloaded"] += 1
-                else:
-                    self.stats["failed"] += 1
-                    continue
-
-                if self.wait_seconds > 0:
-                    time.sleep(self.wait_seconds)
-            else:
-                self.stats["cached"] += 1
-                print(
-                    f"\r  [{len(self.visited)} visited | {len(self.queue)} queued]"
-                    f" cached: {self.stats['cached']}, downloaded: {self.stats['downloaded']}",
-                    end="",
-                    flush=True,
-                )
-
-            # Parse the file for new links
-            self.process_discovered_links(current_url, actual_path, depth)
+            self._process_url(current_url, depth)
 
         print()  # newline after progress counter
 

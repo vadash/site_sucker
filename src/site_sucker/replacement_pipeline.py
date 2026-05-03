@@ -142,6 +142,79 @@ def _log_failure(
     return failure_dir
 
 
+def _apply_step(
+    step: ReplacementStep,
+    current_content: str,
+) -> str:
+    """Apply a single replacement step to content.
+
+    Args:
+        step: The replacement step to apply.
+        current_content: Current content string.
+
+    Returns:
+        Content after applying the step (unchanged if step is invalid).
+    """
+    if isinstance(step.pattern, re.Pattern):
+        repl = step.replacement if step.replacement is not None else ""
+        return step.pattern.sub(repl, current_content)
+    if callable(step.pattern):
+        return step.pattern(current_content)
+    return current_content
+
+
+def _get_failure_counter(log_dir: Path | None) -> int:
+    """Determine the starting failure counter by checking existing log directories.
+
+    Args:
+        log_dir: Base log directory, or None.
+
+    Returns:
+        Next available failure counter value.
+    """
+    if not log_dir or not log_dir.exists():
+        return 1
+
+    existing_logs = [d for d in log_dir.iterdir() if d.is_dir() and d.name.isdigit()]
+    if existing_logs:
+        return max(int(d.name) for d in existing_logs) + 1
+    return 1
+
+
+def _handle_step_result(
+    step: ReplacementStep,
+    new_content: str,
+    current_content: str,
+    file_path: Path,
+    log_dir: Path | None,
+    failure_counter: list[int],
+) -> str:
+    """Validate a step's result and either keep or revert the change.
+
+    Args:
+        step: The step that was applied.
+        new_content: Content after applying the step.
+        current_content: Content before the step.
+        file_path: File being processed.
+        log_dir: Log directory for failures, or None.
+        failure_counter: Mutable single-element list holding the counter.
+
+    Returns:
+        The content to use going forward (new_content if valid, current_content if reverted).
+    """
+    is_valid, error_message = _validate_content(new_content, file_path, current_content)
+
+    if is_valid:
+        return new_content
+
+    # Revert: log the failure if a log directory was provided
+    if log_dir:
+        _log_failure(log_dir, failure_counter[0], file_path, new_content, step, error_message)
+        failure_counter[0] += 1
+
+    return current_content
+
+
 def run_replacement_pipeline(
     file_path: Path,
     steps: list[ReplacementStep],
@@ -176,51 +249,20 @@ def run_replacement_pipeline(
     current_content = original_content
     successful_steps = 0
 
-    # Determine the starting counter value by checking existing log directories
-    failure_counter = 1
-    if log_dir and log_dir.exists():
-        existing_logs = [d for d in log_dir.iterdir() if d.is_dir() and d.name.isdigit()]
-        if existing_logs:
-            max_counter = max(int(d.name) for d in existing_logs)
-            failure_counter = max_counter + 1
+    failure_counter = [_get_failure_counter(log_dir)]
 
     for step in steps:
-        new_content = current_content
+        new_content = _apply_step(step, current_content)
 
-        # Apply the replacement
-        if isinstance(step.pattern, re.Pattern):
-            # Regex-based replacement
-            repl = step.replacement if step.replacement is not None else ""
-            new_content = step.pattern.sub(repl, current_content)
-        elif callable(step.pattern):
-            # Callable-based transformation
-            new_content = step.pattern(current_content)
-        else:
-            continue
-
-        # Check if content changed
         if new_content == current_content:
             continue
 
-        # Validate the new content (pass current_content as baseline for comparison)
-        is_valid, error_message = _validate_content(new_content, file_path, current_content)
-
-        if is_valid:
-            # Keep the change
-            current_content = new_content
+        prev_content = current_content
+        current_content = _handle_step_result(
+            step, new_content, prev_content, file_path, log_dir, failure_counter
+        )
+        if current_content != prev_content:
             successful_steps += 1
-        else:
-            # Revert the change
-            if log_dir:
-                _log_failure(
-                    log_dir,
-                    failure_counter,
-                    file_path,
-                    new_content,
-                    step,
-                    error_message,
-                )
-                failure_counter += 1
 
     # Write final content only if modified
     if current_content != original_content:
