@@ -208,7 +208,7 @@ class ResumeCrawler:
             if not file_existed:
                 parsed_url = urlparse(current_url)
                 short_path = parsed_url.path + (f"?{parsed_url.query}" if parsed_url.query else "")
-                print(f"  [{iteration}] GET {short_path}")
+                print(f"\r  [{len(self.visited)} visited | {len(self.queue)} queued] GET {short_path}")
 
                 success = self.fetch_file(current_url, actual_path)
 
@@ -222,13 +222,16 @@ class ResumeCrawler:
                     time.sleep(self.wait_seconds)
             else:
                 self.stats["cached"] += 1
-                print(f"\r  Cached: {self.stats['cached']}, Downloaded: {self.stats['downloaded']}", end="", flush=True)
+                print(
+                    f"\r  [{len(self.visited)} visited | {len(self.queue)} queued]"
+                    f" cached: {self.stats['cached']}, downloaded: {self.stats['downloaded']}",
+                    end="", flush=True,
+                )
 
             # Parse the file for new links
             self.process_discovered_links(current_url, actual_path, depth)
 
-        if self.stats["cached"] > 0:
-            print()
+        print()  # newline after progress counter
 
         failure_suffix = f" ({self.stats['failed']} failed)" if self.stats['failed'] > 0 else ""
         print(f"[*] BFS complete: {len(self.visited)} visited, {self.stats['downloaded']} downloaded{failure_suffix}")
