@@ -112,10 +112,16 @@ def invoke_site_mirror(
 
             try:
                 result = future.result()
-                if result.returncode not in (0, 8):
+                if result.returncode != 0:
                     failed_urls.append(url)
+                    stderr = result.stderr.decode(errors="replace").strip()
+                    if stderr:
+                        print(f"    wget error: {stderr.splitlines()[-1]}")
             except Exception:
                 failed_urls.append(url)
+
+    if failed_urls:
+        print(f"  {len(failed_urls)} download(s) failed.")
 
     # ── PASS 3: Rewrite external URLs to local paths ────────────────────
     repair_external_links(output_dir, media_dir, ext_urls, log_dir)
