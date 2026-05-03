@@ -302,10 +302,10 @@ def crawl_loop(
 
     iteration = 0
     total_downloaded = 0
+    total_cached = 0
+    failed_downloads = 0
 
-    print(f"\n[*] Starting BFS crawl loop from {url}")
-    print(f"    MaxDepth: {max_depth if max_depth > 0 else 'unlimited'}")
-    print(f"    Target domain: {target_domain}")
+    print(f"\n[*] BFS crawl: {target_domain} (depth={max_depth if max_depth > 0 else 'unlimited'})")
 
     while queue:
         iteration += 1
@@ -326,7 +326,10 @@ def crawl_loop(
 
         # Download if missing
         if not file_existed:
-            print(f"  [{iteration}] Downloading (depth={depth}): {current_url}")
+            # Show short URL path (domain already in header)
+            parsed_url = urlparse(current_url)
+            short_path = parsed_url.path + (f"?{parsed_url.query}" if parsed_url.query else "")
+            print(f"  [{iteration}] GET {short_path}")
 
             # Build wget args for single-page fetch
             args = [
@@ -351,7 +354,13 @@ def crawl_loop(
             result = subprocess.run(args, capture_output=True, env=env)
 
             if result.returncode not in (0, 8):
-                print(f"    Warning: wget exited with code {result.returncode}")
+                failed_downloads += 1
+                stderr_output = result.stderr.decode("utf-8", errors="replace").strip()
+                print(f"         ↳ wget exit {result.returncode}")
+                if stderr_output:
+                    # Show first line of stderr (usually the error message)
+                    first_line = stderr_output.split("\n")[0]
+                    print(f"         ↳ {first_line}")
 
             total_downloaded += 1
 
@@ -359,7 +368,9 @@ def crawl_loop(
             if wait_seconds > 0:
                 time.sleep(wait_seconds)
         else:
-            print(f"  [{iteration}] Using cached (depth={depth}): {current_url}")
+            total_cached += 1
+            # Show progress using carriage return (overwrite in-place)
+            print(f"\r  Cached: {total_cached}, Downloaded: {total_downloaded}", end="", flush=True)
 
         # Resolve the actual file path (with or without .html suffix)
         actual_path = resolve_local_file(expected_path, output_dir)
@@ -399,6 +410,9 @@ def crawl_loop(
                 if css_url not in visited:
                     queue.append((css_url, depth + 1))
 
-    print(f"\n[*] BFS crawl complete:")
-    print(f"    Visited {len(visited)} URLs")
-    print(f"    Downloaded {total_downloaded} new files")
+    # Clear the progress line by printing newline
+    if total_cached > 0:
+        print()
+
+    failure_suffix = f" ({failed_downloads} failed)" if failed_downloads > 0 else ""
+    print(f"[*] BFS complete: {len(visited)} visited, {total_downloaded} downloaded{failure_suffix}")
