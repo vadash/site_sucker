@@ -127,7 +127,7 @@ def discover_css_imports(
 class ResumeCrawler:
     """Manages the BFS crawl state and native HTTP fetching."""
 
-    def __init__(self, output_dir: Path, target_domain: str, settings: Settings):
+    def __init__(self, output_dir: Path, target_domain: str, settings: Settings, session: requests.Session | None = None):
         self.output_dir = output_dir
         self.target_domain = target_domain
         self.settings = settings
@@ -146,7 +146,16 @@ class ResumeCrawler:
         self.stats = {"downloaded": 0, "cached": 0, "failed": 0}
 
         # Configure requests session with retry logic
-        self.session = requests.Session()
+        # Allow session injection for testing
+        self.session = session if session is not None else self._build_default_session()
+
+    def _build_default_session(self) -> requests.Session:
+        """Build a default requests session with retry logic.
+
+        Returns:
+            Configured requests.Session instance.
+        """
+        session = requests.Session()
         retry_strategy = Retry(
             total=self.retries,
             backoff_factor=1,
@@ -154,9 +163,10 @@ class ResumeCrawler:
             allowed_methods=["GET", "HEAD"],
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)
-        self.session.mount("http://", adapter)
-        self.session.mount("https://", adapter)
-        self.session.headers.update({"User-Agent": settings.user_agent, "Accept-Encoding": "identity"})
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        session.headers.update({"User-Agent": self.settings.user_agent, "Accept-Encoding": "identity"})
+        return session
 
     def fetch_file(self, url: str, save_path: Path) -> bool:
         """Fetch a file natively using Python, handling redirects and retries.
