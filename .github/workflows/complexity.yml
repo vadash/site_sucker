@@ -23,9 +23,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev
 
-      - name: Run Radon complexity analysis
+      - name: Run complexity gate (fail on C grade or worse)
         run: |
-          uv run radon cc src/ -a -s --fail C
+          uv run xenon -b C src/
 
       - name: Generate complexity report
         if: always()
