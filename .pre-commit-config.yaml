@@ -47,3 +47,13 @@ repos:
           - types-beautifulsoup4
         args: [--ignore-missing-imports]
         exclude: ^tests/
+
+  # Complexity analysis with radon
+  - repo: local
+    hooks:
+      - id: radon-complexity
+        name: Radon complexity check
+        entry: radon cc -a -s src/ -nb
+        language: system
+        types: [python]
+        pass_filenames: false

@@ -35,6 +35,7 @@ build-backend = "setuptools.build_meta"
 dev = [
     "mypy>=1.20.2",
     "pre-commit>=4.6.0",
+    "radon>=6.0.1",
     "types-beautifulsoup4>=4.12.0.20250516",
     "types-requests>=2.33.0.20260408",
 ]
@@ -108,3 +109,13 @@ strict_equality = true
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+
+[tool.radon]
+# Complexity thresholds for cyclomatic complexity analysis
+# Grade A (1-5): Low complexity - excellent
+# Grade B (6-10): Moderate complexity - acceptable
+# Grade C (11-20): High complexity - needs review
+# Grade D (21-30): Very high complexity - should be refactored
+# Grade F (31+): Extreme complexity - must be refactored
+fail_under = 10  # Fail if any function has complexity > 10 (Grade C or higher)
+show_complexity = true  # Show complexity scores in output

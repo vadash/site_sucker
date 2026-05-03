@@ -1,0 +1,44 @@
+name: Complexity Analysis
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  complexity-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run Radon complexity analysis
+        run: |
+          uv run radon cc src/ -a -s --fail C
+
+      - name: Generate complexity report
+        if: always()
+        run: |
+          echo "## Cyclomatic Complexity Report" >> $GITHUB_STEP_SUMMARY
+          uv run radon cc src/ -a -s >> $GITHUB_STEP_SUMMARY || true
+
+      - name: Check average complexity
+        run: |
+          COMPLEXITY=$(uv run radon cc src/ -a -s --total-average | tail -1 | awk '{print $NF}')
+          echo "Average complexity: $COMPLEXITY"
+          if (( $(echo "$COMPLEXITY > 10" | bc -l) )); then
+            echo "Warning: Average complexity exceeds threshold of 10"
+            exit 1
+          fi
+        continue-on-error: true

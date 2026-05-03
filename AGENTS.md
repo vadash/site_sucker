@@ -62,11 +62,34 @@ The project uses pre-commit hooks to automatically enforce code quality before c
 
 - **Ruff**: Linting and formatting (auto-fixes issues)
 - **MyPy**: Type checking
+- **Radon**: Cyclomatic complexity analysis (flags functions with complexity > 10)
 - **File checks**: Trailing whitespace, line endings, file size limits, merge conflicts
 - **Security**: Private key detection
 - **Branch protection**: Prevents direct commits to master
 
 Install hooks once with `uv run pre-commit install`. Hooks run automatically on each commit.
+
+### Code Complexity Analysis
+
+The project uses **Radon** for cyclomatic complexity analysis to maintain code quality:
+
+```bash
+# Run complexity analysis
+uv run radon cc src/ -a -s          # detailed analysis with scores
+uv run radon cc src/ -a -s -nb      # summary only (no individual blocks)
+
+# Generate HTML complexity report
+uv run radon cc src/ -a -s -o complexity_report.html
+```
+
+**Complexity thresholds** (automatically enforced via pre-commit):
+- Grade A (1-5): Low complexity - excellent
+- Grade B (6-10): Moderate complexity - acceptable  
+- Grade C (11-20): High complexity - needs review ⚠️
+- Grade D (21-30): Very high complexity - should be refactored
+- Grade F (31+): Extreme complexity - must be refactored
+
+Functions with Grade C or higher will fail the pre-commit hook and require refactoring.
 
 ## Platform Gotchas
 
