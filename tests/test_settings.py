@@ -282,6 +282,30 @@ def test_merge_cli_overrides_does_not_mutate_original():
     assert "f=31&" not in base.reject_patterns
 
 
+def test_merge_cli_overrides_wait():
+    """Test that wait parameter overrides settings."""
+    base = Settings(wait_between_requests=0.5)
+    result = settings.merge_cli_overrides(base, wait=5.0)
+
+    assert result.wait_between_requests == 5.0
+
+
+def test_merge_cli_overrides_wait_zero():
+    """Test that wait=0 is accepted (disables waiting)."""
+    base = Settings(wait_between_requests=0.5)
+    result = settings.merge_cli_overrides(base, wait=0)
+
+    assert result.wait_between_requests == 0
+
+
+def test_merge_cli_overrides_wait_none():
+    """Test that wait=None preserves original value."""
+    base = Settings(wait_between_requests=0.5)
+    result = settings.merge_cli_overrides(base, wait=None)
+
+    assert result.wait_between_requests == 0.5
+
+
 # JSONC Tests
 
 

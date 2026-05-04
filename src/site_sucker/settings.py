@@ -431,6 +431,7 @@ def merge_cli_overrides(
     parallel: int | None = None,
     depth: int | None = None,
     extra_reject: list[str] | None = None,
+    wait: float | None = None,
 ) -> Settings:
     """Merge CLI parameter overrides into settings.
 
@@ -439,6 +440,7 @@ def merge_cli_overrides(
         parallel: Override for parallel_downloads.
         depth: Override for max_depth.
         extra_reject: Additional reject patterns. Supports semicolon-delimited values.
+        wait: Override for wait_between_requests.
 
     Returns:
         Updated Settings instance (original is never mutated).
@@ -451,6 +453,9 @@ def merge_cli_overrides(
 
     if depth is not None and depth > 0:
         settings_dict["MaxDepth"] = depth
+
+    if wait is not None and wait >= 0:
+        settings_dict["WaitBetweenRequests"] = wait
 
     if extra_reject:
         additional_patterns = _expand_reject_patterns(extra_reject)

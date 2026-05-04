@@ -44,6 +44,7 @@ class TestParseArgs:
             assert args.depth == 0
             assert args.parallel == 4
             assert args.extra_reject is None
+            assert args.wait == 0
             assert args.resume is False
         finally:
             sys.argv = old_argv
@@ -81,6 +82,8 @@ class TestParseArgs:
                 "action=",
                 "-r",
                 "Special:",
+                "--wait",
+                "3.5",
                 "--resume",
             ]
             args = parse_args()
@@ -90,6 +93,7 @@ class TestParseArgs:
             assert args.depth == 5
             assert args.parallel == 8
             assert args.extra_reject == ["action=", "Special:"]
+            assert args.wait == 3.5
             assert args.resume is True
         finally:
             sys.argv = old_argv

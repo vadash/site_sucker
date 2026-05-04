@@ -96,6 +96,13 @@ Examples:
     )
 
     parser.add_argument(
+        "--wait",
+        type=float,
+        default=0,
+        help="Wait between requests in seconds (default: from settings file, or 0.5)",
+    )
+
+    parser.add_argument(
         "--resume",
         action="store_true",
         help="Resume an interrupted download from existing output directory. "
@@ -229,7 +236,7 @@ def main() -> None:
     cfg = settings.load_settings(args.settings_path)
 
     # Merge CLI overrides
-    cfg = settings.merge_cli_overrides(cfg, args.parallel, args.depth, args.extra_reject)
+    cfg = settings.merge_cli_overrides(cfg, args.parallel, args.depth, args.extra_reject, args.wait)
 
     # Resolve configuration
     url, output_path, target_domain, cfg = resolve_config(args, cfg)
