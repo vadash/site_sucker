@@ -33,9 +33,11 @@ class RemovalRule:
 
 # Data-driven removal rules for online-only resources
 _REMOVAL_RULES = [
-    # MediaWiki load.php resources
-    RemovalRule(tag="link", attrs={"rel": "stylesheet", "href": re.compile(r"load\.php")}),
-    RemovalRule(tag="script", attrs={"src": re.compile(r"load\.php")}),
+    # MediaWiki load.php resources (only remote URLs; wget-converted local paths are preserved)
+    RemovalRule(
+        tag="link", attrs={"rel": "stylesheet", "href": re.compile(r"^https?://.*load\.php")}
+    ),
+    RemovalRule(tag="script", attrs={"src": re.compile(r"^https?://.*load\.php")}),
     # Network hints
     RemovalRule(tag="link", attrs={"rel": "preconnect"}),
     RemovalRule(tag="link", attrs={"rel": "dns-prefetch"}),

@@ -209,6 +209,27 @@ def test_repair_offline_html_removes_google_analytics(tmp_path: Path):
     assert "ga('send'" not in updated_content
 
 
+def test_repair_offline_html_preserves_local_load_php(tmp_path: Path):
+    """Test that wget-converted local load.php references are preserved."""
+    html_file = tmp_path / "test.html"
+    original_html = """<html>
+<head>
+    <link rel="stylesheet" href="../w/load.php%3Fmodules%3Dsite">
+    <script src="load.php@modules=jquery"></script>
+</head>
+</html>"""
+    html_file.write_text(original_html)
+
+    result = repair_offline.repair_offline_html(tmp_path)
+
+    assert result == 1
+
+    updated_content = html_file.read_text()
+    # Local load.php references should be preserved
+    assert "load.php%3Fmodules%3Dsite" in updated_content
+    assert "load.php@modules=jquery" in updated_content
+
+
 def test_repair_offline_html_removes_mixed_tracking(tmp_path: Path):
     """Test removal of both Matomo and Google Analytics."""
     html_file = tmp_path / "test.html"
