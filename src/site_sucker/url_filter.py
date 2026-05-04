@@ -3,6 +3,7 @@
 Shared by resume crawler, media scanner, and wget argument builder.
 """
 
+import re
 from collections.abc import Iterable
 from urllib.parse import urljoin, urlparse
 
@@ -20,8 +21,12 @@ def _matches_reject_rules(
     reject_patterns: Iterable[str] | None,
     reject_domains: Iterable[str] | None,
 ) -> bool:
-    """Check if a URL matches reject patterns or domains."""
-    if reject_patterns and any(pattern in url for pattern in reject_patterns):
+    """Check if a URL matches reject patterns or domains.
+
+    Reject patterns are matched as regex (consistent with wget's --reject-regex).
+    Simple substring patterns like "action=" work as-is since they're valid regex.
+    """
+    if reject_patterns and any(re.search(pattern, url) for pattern in reject_patterns):
         return True
     return bool(
         reject_domains
@@ -42,7 +47,7 @@ def should_reject_url(
     Args:
         url: The URL to check.
         target_domain: Primary domain being mirrored (urls from other domains are rejected).
-        reject_patterns: List of substring patterns to reject (e.g., ["action=", "Special:"]).
+        reject_patterns: List of regex patterns to reject (e.g., ["action=", "Special:"]).
         reject_domains: List of domains to reject (e.g., ["analytics.example.com"]).
 
     Returns:
@@ -100,7 +105,7 @@ def extract_internal_urls(
         soup: BeautifulSoup object representing the parsed HTML.
         base_url: Base URL of this HTML file (used to resolve relative links).
         target_domain: Primary domain to filter links (only keep links to this domain).
-        reject_patterns: List of substring patterns to reject (e.g., ["action=", "Special:"]).
+        reject_patterns: List of regex patterns to reject (e.g., ["action=", "Special:"]).
         reject_domains: List of domains to reject (e.g., ["analytics.example.com"]).
 
     Returns:

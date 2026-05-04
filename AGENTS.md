@@ -34,14 +34,16 @@ Entry: `mirror.py::invoke_site_mirror()`. `CrawlerBase` → `WgetCrawler` (defau
 - **File iteration**: `file_iter.py` helpers, never manual `os.walk`
 - **Logging**: `logging` module, never `print()`
 - **Paths**: `pathlib.Path`, resolve to absolute before file ops
+- **URL filtering**: `RejectPatterns` in `settings.jsonc` are matched as **regex** (via `re.search`), consistent with wget's `--reject-regex`. Simple substrings like `"action="` work as-is since they're valid regex. Regex patterns like `"/comments/[^/]+/[^/]+/[^/]+"` are also supported.
 - **Errors**: `FileNotFoundError` for missing wget; empty list/set for "not found"; `try/except` for IO
 - **Naming**: PEP 8 — `snake_case`/`PascalCase`/`UPPER_CASE` (enforced by Ruff)
 
 ## Commands
 
 ```bash
-.\.venv\Scripts\python.exe -m pytest                    # tests
-.\.venv\Scripts\python.exe -m pytest --cov=site_sucker  # with coverage
+uv pip install pytest pytest-cov                        # first time only
+uv run python -m pytest                                 # tests
+uv run python -m pytest --cov=site_sucker               # with coverage
 ```
 
 Pre-commit hooks run automatically on commit — no need to run lint, type-check, complexity, dead-code, or duplicate checks manually.

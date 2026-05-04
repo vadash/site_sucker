@@ -400,3 +400,60 @@ def test_should_reject_url_domains():
         )
         is True
     )
+
+
+def test_should_reject_url_regex_pattern():
+    """Test that reject patterns work as regex, not just substrings."""
+    # Simple substring patterns still work
+    assert (
+        should_reject_url(
+            "https://example.com/index.php?action=edit",
+            "example.com",
+            reject_patterns=["action="],
+        )
+        is True
+    )
+
+    # Regex pattern: Reddit comment permalink (post_id/slug/comment_id)
+    pattern = "/comments/[^/]+/[^/]+/[^/]+"
+    # Comment permalink should be rejected (has comment_id after slug)
+    assert (
+        should_reject_url(
+            "https://old.reddit.com/r/sub/comments/abc123/post_slug/ojf123/",
+            "old.reddit.com",
+            reject_patterns=[pattern],
+        )
+        is True
+    )
+    # Post URL should NOT be rejected (only post_id/slug, no comment_id)
+    assert (
+        should_reject_url(
+            "https://old.reddit.com/r/sub/comments/abc123/post_slug/",
+            "old.reddit.com",
+            reject_patterns=[pattern],
+        )
+        is False
+    )
+
+
+def test_extract_internal_urls_regex_reject_pattern():
+    """Test that regex reject patterns filter URLs in extract_internal_urls."""
+    html = """<html>
+        <body>
+            <a href="https://old.reddit.com/r/sub/comments/abc123/post_slug/">Post</a>
+            <a href="https://old.reddit.com/r/sub/comments/abc123/post_slug/ojf123/">Comment</a>
+            <a href="https://old.reddit.com/r/sub/comments/abc123/post_slug/?sort=new">Sorted</a>
+        </body>
+    </html>"""
+
+    soup = BeautifulSoup(html, "lxml")
+    urls = extract_internal_urls(
+        soup,
+        base_url="https://old.reddit.com/r/sub/",
+        target_domain="old.reddit.com",
+        reject_patterns=["/comments/[^/]+/[^/]+/[^/]+", "sort="],
+    )
+
+    assert "https://old.reddit.com/r/sub/comments/abc123/post_slug/" in urls
+    assert "https://old.reddit.com/r/sub/comments/abc123/post_slug/ojf123/" not in urls
+    assert "https://old.reddit.com/r/sub/comments/abc123/post_slug/?sort=new" not in urls

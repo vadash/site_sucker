@@ -14,7 +14,8 @@
   "ParallelDownloads": 2, // number of concurrent download threads
   // Output settings
   "OutputRoot": "./downloads", // where to save downloaded sites
-  // URL rejection patterns (matched as substrings)
+  // URL rejection patterns (matched as regex, consistent with wget --reject-regex)
+  // Simple substrings like "action=" work as-is since they are valid regex
   // These skip low-value or transient pages during the wget pass
   "RejectPatterns": [
     // MediaWiki patterns
@@ -58,9 +59,10 @@
     "&sk=", // Sort Key (Author, Time, Subject) - prevents re-downloading forum indexes in every sort order
     "&sd=", // Sort Direction (Ascending, Descending) - same as above
     "&st=", // Sort Time (1 day, 7 days, etc.) - same as above
-    // reddit
-    "sort=", // reddit
-    ".rss", // reddit
+    // Reddit patterns
+    "/comments/[^/]+/[^/]+/[^/]+", // comment permalinks (post_id/slug/comment_id) — keeps the post, skips individual comment pages
+    "sort=", // sort options (new, top, controversial, etc.)
+    ".rss", // RSS feeds
     "ZZZXXXCCC" // LAST
   ],
   // Domains to block entirely (analytics, tracking)
