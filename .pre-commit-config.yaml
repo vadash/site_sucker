@@ -76,3 +76,12 @@ repos:
         entry: npx jscpd src/
         language: system
         pass_filenames: false
+
+  # Test suite with pytest
+  - repo: local
+    hooks:
+      - id: pytest
+        name: Pytest test suite
+        entry: uv run python -m pytest
+        language: system
+        pass_filenames: false

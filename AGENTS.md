@@ -41,12 +41,12 @@ Entry: `mirror.py::invoke_site_mirror()`. `CrawlerBase` → `WgetCrawler` (defau
 ## Commands
 
 ```bash
-uv pip install pytest pytest-cov                        # first time only
-uv run python -m pytest                                 # tests
-uv run python -m pytest --cov=site_sucker               # with coverage
+uv pip install pytest pytest-cov pytest-cov              # first time only
+uv run python -m pytest                                  # run tests manually (not needed - pre-commit hooks run them)
+uv run python -m pytest --cov=site_sucker                # with coverage
 ```
 
-Pre-commit hooks run automatically on commit — no need to run lint, type-check, complexity, dead-code, or duplicate checks manually.
+Pre-commit hooks run automatically on commit — including the full test suite. No need to manually run lint, type-check, complexity, dead-code, duplicate checks, or tests.
 
 ## Platform
 
