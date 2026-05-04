@@ -18,52 +18,70 @@
   // Simple substrings like "action=" work as-is since they are valid regex
   // These skip low-value or transient pages during the wget pass
   "RejectPatterns": [
-    // MediaWiki patterns
-    "action=", // edit/history action pages (duplicates)
-    "oldid=", // old revision pages (duplicates)
-    "diff=", // diff comparison pages (transient)
-    "printable=", // printable versions (redundant)
-    "returnto=", // redirect pages (transient)
-    "redirect=", // general redirect URLs (transient)
-    "Special:", // special pages (dynamic, not archived)
-    "Talk:", // talk discussion pages (low priority)
-    "User:", // user profile pages (low priority)
-    "User_talk:", // user talk pages (low priority)
-    "Category_talk:", // category talk pages (low priority)
-    "load.php", // ResourceLoader modules (served locally in offline mode)
-    "api.php", // API endpoint (not browsable content)
-    // phpBB patterns
-    "search.php", // blocks Active Topics, Unread Posts, user post histories (main source of duplicate URL permutations)
-    "view=", // blocks view=unread, view=next, view=previous, view=print
-    "hilit=", // blocks search highlighting duplicates (huge source of duplicates)
-    "style=", // blocks theme-switching duplicates
-    "mark=", // blocks "mark forums read" duplicates
-    "mode=reply", // empty reply form pages (useless offline)
-    "mode=login", // login pages (don't work offline)
-    "mode=register", // registration pages (don't work offline)
-    "mode=quote", // quote reply pages (transient)
-    "mode=viewprofile", // user profile pages (low value)
-    "tradegold.php", // trade/gold pages (game-specific, not archived)
-    "cron.php", // background cron tasks (admin-only)
-    "feed.php", // RSS/Atom feeds (tiny, not useful offline)
-    "ucp.php", // user control panel (requires login)
-    "mcp.php", // moderator control panel (requires login)
-    "faq.php", // FAQ pages (usually static, low priority)
-    "memberlist.php", // more crap
-    "admin.php", // more crap
-    "coc.php", // more crap
-    "posting.php", // no need posting
-    "download/file.php", // attachments/avatars (large, optional; downloaded separately if needed)
-    "viewtopic.php?p=", // per-post viewtopic duplicates (?p=N direct link)
-    "viewtopic.php&", // per-post duplicates when &p=N appears after other params
-    "&sk=", // Sort Key (Author, Time, Subject) - prevents re-downloading forum indexes in every sort order
-    "&sd=", // Sort Direction (Ascending, Descending) - same as above
-    "&st=", // Sort Time (1 day, 7 days, etc.) - same as above
-    // Reddit patterns
-    "/comments/[^/]+/[^/]+/[^/]+", // comment permalinks (post_id/slug/comment_id) — keeps the post, skips individual comment pages
-    "sort=", // sort options (new, top, controversial, etc.)
-    ".rss", // RSS feeds
-    "ZZZXXXCCC" // LAST
+    // --- General / Added Stuff ---
+    "&highlight=",       // General search highlighting
+    "&l=",               // Language switching permutations
+    //"PHPSESSID=",       // never add Session IDs or app wont download anything
+    //"sid=",             // never add Session IDs or app wont download anything
+    "cancel=",           // "Cancel" action buttons
+    "login",             // Generic login paths
+    "logout",            // Logout triggers (can kill sessions)
+    "share=",            // Social share popups/tracking
+
+    // --- MediaWiki ---
+    "api.php",           // API endpoints (non-browsable)
+    "action=",           // Edit/history/delete actions (duplicates/transient)
+    "Category_talk:",    // Category discussions (low priority)
+    "diff=",             // Revision comparisons (transient)
+    "load.php",          // ResourceLoader (heavy, dynamic JS/CSS)
+    "oldid=",            // Specific old revisions (duplicates)
+    "printable=",        // Printer-friendly versions (redundant)
+    "redirect=",         // General URL redirects (transient)
+    "returnto=",         // Post-login/action redirects (transient)
+    "Special:",          // System-generated pages (Search, Upload, etc.)
+    "Talk:",             // Article talk pages (low priority)
+    "User:",             // User profiles
+    "User_talk:",        // User discussion pages
+
+    // --- phpBB ---
+    "&sd=",              // Sort Direction (prevents re-scraping same list)
+    "&sk=",              // Sort Key (prevents re-scraping same list)
+    "&st=",              // Sort Time (prevents re-scraping same list)
+    "admin.php",         // Admin panel
+    "coc.php",           // Code of Conduct
+    "cron.php",          // System background tasks
+    "download/file.php", // Attachments/avatars (save bandwidth)
+    "faq.php",           // Static help pages
+    "feed.php",          // RSS/Atom feeds
+    "hilit=",            // Search keyword highlighting (massive duplicate source)
+    "mark=",             // "Mark as read" triggers
+    "mcp.php",           // Moderator control panel
+    "memberlist.php",    // User directories
+    "mode=login",        // Auth pages
+    "mode=quote",        // Quote-reply forms
+    "mode=register",     // Registration pages
+    "mode=reply",        // Posting forms
+    "mode=viewprofile",  // User profiles
+    "posting.php",       // New post/edit forms
+    "search.php",        // Search results & history (major duplicate source)
+    "style=",            // Theme/skin switching
+    "tradegold.php",     // Game-specific commerce logic
+    "ucp.php",           // User control panel
+    "view=",             // view=unread, next, previous (redundant)
+    "viewtopic.php&",    // Post-specific URL permutations
+    "viewtopic.php?p=",  // Direct links to specific posts (duplicates)
+
+    // --- Reddit ---
+    "/comments/[^/]+/[^/]+/[^/]+", // Comment permalinks (keeps main post, skips deep-link pages)
+    ".rss",              // RSS feeds
+    "sort=",             // Comment/post sorting (new, top, etc.)
+    "/controversial",
+    "/rising",
+    "/new",
+    "submit",
+
+    // --- ADD MORE ---
+    "ZZZXXXCCC"          // Anchor/End of list
   ],
   // Domains to block entirely (analytics, tracking)
   "RejectDomains": [
