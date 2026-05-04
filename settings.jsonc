@@ -58,6 +58,9 @@
     "&sk=", // Sort Key (Author, Time, Subject) - prevents re-downloading forum indexes in every sort order
     "&sd=", // Sort Direction (Ascending, Descending) - same as above
     "&st=", // Sort Time (1 day, 7 days, etc.) - same as above
+    // reddit
+    "sort=", // reddit
+    ".rss", // reddit
     "ZZZXXXCCC" // LAST
   ],
   // Domains to block entirely (analytics, tracking)
