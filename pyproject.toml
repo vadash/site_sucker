@@ -12,12 +12,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0.0",
-    "pytest-cov>=4.1.0",
     "ruff>=0.1.0",
-    "mypy>=1.8.0",
-    "types-requests>=2.31.0",
-    "types-beautifulsoup4>=4.12.0",
     "black>=24.0.0",
 ]
 
@@ -40,6 +35,8 @@ dev = [
     "types-beautifulsoup4>=4.12.0.20250516",
     "types-requests>=2.33.0.20260408",
     "vulture>=2.0",
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
 ]
 
 [tool.setuptools.packages.find]

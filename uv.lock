@@ -850,18 +850,15 @@ dependencies = [
 [package.optional-dependencies]
 dev = [
     { name = "black" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
     { name = "ruff" },
-    { name = "types-beautifulsoup4" },
-    { name = "types-requests" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "mypy" },
     { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
     { name = "radon" },
     { name = "types-beautifulsoup4" },
     { name = "types-requests" },
@@ -874,13 +871,8 @@ requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.12.0" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=24.0.0" },
     { name = "lxml", specifier = ">=5.0.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
     { name = "requests", specifier = ">=2.31.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
-    { name = "types-beautifulsoup4", marker = "extra == 'dev'", specifier = ">=4.12.0" },
-    { name = "types-requests", marker = "extra == 'dev'", specifier = ">=2.31.0" },
 ]
 provides-extras = ["dev"]
 
@@ -888,6 +880,8 @@ provides-extras = ["dev"]
 dev = [
     { name = "mypy", specifier = ">=1.20.2" },
     { name = "pre-commit", specifier = ">=4.6.0" },
+    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
     { name = "radon", specifier = ">=6.0.1" },
     { name = "types-beautifulsoup4", specifier = ">=4.12.0.20250516" },
     { name = "types-requests", specifier = ">=2.33.0.20260408" },
